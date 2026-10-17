@@ -228,11 +228,11 @@
     resize();
     window.addEventListener('resize', resize);
 
-    // Game state
+    // ── Game state ──
     const STATE = { MENU: 0, PLAYING: 1, WON: 2, LOST: 3 };
     let state = STATE.MENU;
-    let escapeProgress = 0;
-    let dangerProgress = 0;
+    let escapeProgress = 0;   // 0‑100
+    let dangerProgress = 0;   // 0‑100
     let score = 0;
     let level = 1;
     let wiggleAmount = 0;
@@ -244,18 +244,22 @@
     let sparks = [];
     let cutAnimProgress = 0;
     let escapeAnimProgress = 0;
+    let lastFrameTime = 0;
 
-    // Level config
+    // ── Level config (all values are PER SECOND, not per frame) ──
     function getLevelConfig() {
+      // Level 1: ~8 seconds to cut, generous click gain, mild decay
+      // Each level the saw gets ~1s faster, click gain shrinks slightly, decay grows
+      const totalTime = Math.max(5, 10 - level * 0.5);       // seconds until rope cuts
       return {
-        dangerSpeed: 0.08 + level * 0.025,
-        escapePerClick: Math.max(0.6, 1.8 - level * 0.1),
-        escapeDecay: 0.03 + level * 0.008,
-        ropeCount: Math.min(3 + Math.floor(level / 3), 8),
+        dangerPerSec:     100 / totalTime,                    // fills danger bar in totalTime
+        escapePerClick:   Math.max(2.5, 5.0 - level * 0.2),  // % per click (before combo)
+        escapeDecayPerSec: Math.min(8, 1.5 + level * 0.6),   // % lost per second of idleness
+        ropeCount:        Math.min(3 + Math.floor(level / 3), 8),
       };
     }
 
-    // Rope physics
+    // ── Rope physics ──
     class RopePoint {
       constructor(x, y, pinned = false) {
         this.x = x; this.y = y;
@@ -321,12 +325,12 @@
 
     function drawRopes() {
       const brokenAmount = state === STATE.WON ? cutAnimProgress : 0;
-      const tensionColor = state === STATE.LOST ? '#ef4444' : 
+      const tensionColor = state === STATE.LOST ? '#ef4444' :
         `hsl(${40 - dangerProgress * 0.4}, 80%, ${55 + Math.sin(Date.now() * 0.01) * 10}%)`;
 
       ropeSegments.forEach((rope, ri) => {
         if (brokenAmount > 0 && ri < ropeSegments.length * brokenAmount) {
-          // Draw broken rope flying apart
+          // broken rope flying apart
           ctx.strokeStyle = '#8B7355';
           ctx.lineWidth = 2;
           ctx.setLineDash([4, 4]);
@@ -343,14 +347,14 @@
           return;
         }
 
-        // Rope shadow
+        // shadow
         ctx.strokeStyle = 'rgba(0,0,0,0.3)';
         ctx.lineWidth = 6;
         ctx.beginPath();
         rope.forEach((p, i) => i === 0 ? ctx.moveTo(p.x + 2, p.y + 3) : ctx.lineTo(p.x + 2, p.y + 3));
         ctx.stroke();
 
-        // Main rope
+        // main rope
         ctx.strokeStyle = tensionColor;
         ctx.lineWidth = 4;
         ctx.lineCap = 'round';
@@ -358,7 +362,7 @@
         rope.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
         ctx.stroke();
 
-        // Rope highlight
+        // highlight
         ctx.strokeStyle = 'rgba(255,255,255,0.15)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -367,7 +371,7 @@
       });
     }
 
-    // Character
+    // ── Character ──
     function drawCharacter() {
       const cx = W / 2 + characterShake.x;
       const cy = H / 2 + 20 + characterShake.y;
@@ -377,13 +381,13 @@
       ctx.translate(cx, cy);
       ctx.rotate(Math.sin(Date.now() * 0.015) * wiggle * 0.15);
 
-      // Shadow
+      // shadow
       ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.beginPath();
       ctx.ellipse(3, 55, 25, 8, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Body
+      // body
       const bodyGrad = ctx.createLinearGradient(-18, -25, 18, 40);
       bodyGrad.addColorStop(0, '#6366f1');
       bodyGrad.addColorStop(1, '#4338ca');
@@ -392,25 +396,23 @@
       ctx.roundRect(-18, -15, 36, 55, 8);
       ctx.fill();
 
-      // Arms wiggling
+      // arms wiggling
       const armWiggle = Math.sin(Date.now() * 0.02) * wiggle * 8;
       ctx.strokeStyle = '#6366f1';
       ctx.lineWidth = 7;
       ctx.lineCap = 'round';
 
-      // Left arm
       ctx.beginPath();
       ctx.moveTo(-18, 0);
       ctx.quadraticCurveTo(-35 + armWiggle, -10, -30 + armWiggle * 1.5, -25);
       ctx.stroke();
 
-      // Right arm
       ctx.beginPath();
       ctx.moveTo(18, 0);
       ctx.quadraticCurveTo(35 - armWiggle, -10, 30 - armWiggle * 1.5, -25);
       ctx.stroke();
 
-      // Legs
+      // legs
       const legWiggle = Math.cos(Date.now() * 0.018) * wiggle * 5;
       ctx.strokeStyle = '#4338ca';
       ctx.lineWidth = 8;
@@ -423,7 +425,7 @@
       ctx.lineTo(12 - legWiggle, 58);
       ctx.stroke();
 
-      // Head
+      // head
       const headGrad = ctx.createRadialGradient(0, -28, 2, 0, -28, 16);
       headGrad.addColorStop(0, '#fcd7a0');
       headGrad.addColorStop(1, '#f0b87a');
@@ -432,30 +434,24 @@
       ctx.arc(0, -28, 16, 0, Math.PI * 2);
       ctx.fill();
 
-      // Face expression
+      // ── face ──
       if (state === STATE.LOST) {
-        // Scared / dead face
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.arc(-5, -31, 2.5, 0, Math.PI * 2);
-        ctx.arc(5, -31, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, -22, 5, 0, Math.PI);
-        ctx.stroke();
         // X eyes
         ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         [-5, 5].forEach(ex => {
           ctx.beginPath();
           ctx.moveTo(ex - 3, -33); ctx.lineTo(ex + 3, -29);
           ctx.moveTo(ex + 3, -33); ctx.lineTo(ex - 3, -29);
           ctx.stroke();
         });
+        // open mouth
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, -22, 5, 0, Math.PI);
+        ctx.stroke();
       } else if (state === STATE.WON) {
-        // Happy face
         ctx.fillStyle = '#333';
         ctx.beginPath();
         ctx.arc(-5, -31, 2, 0, Math.PI * 2);
@@ -467,7 +463,7 @@
         ctx.arc(0, -26, 6, 0.1, Math.PI - 0.1);
         ctx.stroke();
       } else {
-        // Struggling face
+        // struggling face
         const eyeShift = Math.sin(Date.now() * 0.01) * wiggle;
         ctx.fillStyle = '#333';
         ctx.beginPath();
@@ -475,7 +471,7 @@
         ctx.arc(5 + eyeShift, -31, 2 + wiggle * 0.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Mouth - grimace
+        // grimace mouth
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -486,7 +482,7 @@
         ctx.lineTo(5, -24 + mouthWiggle);
         ctx.stroke();
 
-        // Sweat drop when danger is high
+        // sweat when danger high
         if (dangerProgress > 50) {
           const sweatY = -38 + (Date.now() % 1000) / 1000 * 15;
           ctx.fillStyle = `rgba(100, 200, 255, ${1 - (Date.now() % 1000) / 1000})`;
@@ -499,7 +495,7 @@
       ctx.restore();
     }
 
-    // Saw blade (danger indicator)
+    // ── Saw blade ──
     function drawSawBlade() {
       if (state !== STATE.PLAYING && state !== STATE.LOST) return;
 
@@ -514,7 +510,6 @@
       ctx.translate(sawX, sawY);
       ctx.rotate(rotation);
 
-      // Saw blade
       ctx.fillStyle = '#94a3b8';
       ctx.beginPath();
       for (let i = 0; i < teeth; i++) {
@@ -526,7 +521,6 @@
       ctx.closePath();
       ctx.fill();
 
-      // Center
       ctx.fillStyle = '#64748b';
       ctx.beginPath();
       ctx.arc(0, 0, 8, 0, Math.PI * 2);
@@ -538,7 +532,7 @@
 
       ctx.restore();
 
-      // Sparks when close
+      // sparks when close
       if (progress > 0.6) {
         for (let i = 0; i < 2; i++) {
           sparks.push({
@@ -553,7 +547,7 @@
       }
     }
 
-    // Particles
+    // ── Particles ──
     function spawnClickParticles(x, y) {
       for (let i = 0; i < 6; i++) {
         particles.push({
@@ -582,19 +576,20 @@
       }
     }
 
-    function updateParticles() {
+    function updateParticles(dt) {
+      const decay = 1.5; // particles last ~0.67s
       particles = particles.filter(p => {
         p.x += p.vx;
         p.y += p.vy;
         p.vy += 0.1;
-        p.life -= 0.025;
+        p.life -= decay * dt;
         return p.life > 0;
       });
       sparks = sparks.filter(s => {
         s.x += s.vx;
         s.y += s.vy;
         s.vy += 0.15;
-        s.life -= 0.05;
+        s.life -= 3 * dt;
         return s.life > 0;
       });
     }
@@ -615,11 +610,10 @@
       ctx.globalAlpha = 1;
     }
 
-    // Background
+    // ── Background ──
     function drawBackground() {
-      // Dark gradient
       const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, Math.max(W, H) * 0.7);
-      
+
       if (state === STATE.LOST) {
         grad.addColorStop(0, '#3d1111');
         grad.addColorStop(1, '#1a0505');
@@ -637,14 +631,14 @@
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
 
-      // Vignette
+      // vignette
       const vig = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.9);
       vig.addColorStop(0, 'transparent');
       vig.addColorStop(1, 'rgba(0,0,0,0.5)');
       ctx.fillStyle = vig;
       ctx.fillRect(0, 0, W, H);
 
-      // Floor line
+      // floor
       ctx.strokeStyle = 'rgba(255,255,255,0.05)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -653,7 +647,7 @@
       ctx.stroke();
     }
 
-    // Screen shake
+    // ── Screen shake ──
     let shakeIntensity = 0;
     function applyScreenShake() {
       if (shakeIntensity > 0.1) {
@@ -662,16 +656,17 @@
           (Math.random() - 0.5) * shakeIntensity,
           (Math.random() - 0.5) * shakeIntensity
         );
-        shakeIntensity *= 0.9;
       }
     }
-    function restoreScreenShake() {
+    function restoreScreenShake(dt) {
       if (shakeIntensity > 0.1) {
         ctx.restore();
+        // Decay shake using dt – half-life ~0.1s
+        shakeIntensity *= Math.pow(0.001, dt);
       }
     }
 
-    // Game logic
+    // ── Click handling ──
     function handleClick(x, y) {
       if (state === STATE.MENU) {
         startGame();
@@ -696,17 +691,25 @@
         const now = Date.now();
         const timeSince = now - lastClickTime;
 
-        // Combo for fast clicks
-        if (timeSince < 300) {
-          clickCombo = Math.min(clickCombo + 1, 10);
+        // Combo – generous 500ms window
+        if (timeSince < 500) {
+          clickCombo = Math.min(clickCombo + 1, 15);
         } else {
-          clickCombo = Math.max(0, clickCombo - 1);
+          clickCombo = Math.max(0, clickCombo - 2);
         }
         lastClickTime = now;
 
         const cfg = getLevelConfig();
-        const comboMultiplier = 1 + clickCombo * 0.15;
-        escapeProgress = Math.min(100, escapeProgress + cfg.escapePerClick * comboMultiplier);
+        const comboMultiplier = 1 + clickCombo * 0.12;
+        const gain = cfg.escapePerClick * comboMultiplier;
+        escapeProgress = Math.min(100, escapeProgress + gain);
+
+        // Trigger win immediately on the click that fills the bar
+        if (escapeProgress >= 100 && state === STATE.PLAYING) {
+          gameWon();
+          updateUI();
+        }
+
         wiggleAmount = Math.min(5, wiggleAmount + 0.8);
         characterShake.x = (Math.random() - 0.5) * 12;
         characterShake.y = (Math.random() - 0.5) * 8;
@@ -714,23 +717,23 @@
 
         spawnClickParticles(x, y);
 
-        // Visual feedback
+        // ripple
         const ripple = document.createElement('div');
         ripple.className = 'click-ripple';
         ripple.style.left = x + 'px';
         ripple.style.top = y + 'px';
         if (clickCombo > 3) {
-          ripple.style.borderColor = `hsl(${60 + clickCombo * 20}, 100%, 60%)`;
+          ripple.style.borderColor = `hsl(${60 + clickCombo * 15}, 100%, 60%)`;
         }
         document.body.appendChild(ripple);
         setTimeout(() => ripple.remove(), 500);
 
-        // Floating text
-        if (clickCombo >= 3) {
+        // floating combo text
+        if (clickCombo >= 2) {
           const texts = ['WIGGLE!', 'FASTER!', 'GO GO GO!', 'ESCAPE!', '🔥 COMBO!', '⚡ POWER!'];
           const ft = document.createElement('div');
           ft.className = 'wiggle-text';
-          ft.textContent = texts[Math.min(clickCombo - 3, texts.length - 1)];
+          ft.textContent = texts[Math.min(clickCombo - 2, texts.length - 1)];
           ft.style.left = x + 'px';
           ft.style.top = (y - 20) + 'px';
           ft.style.fontSize = (14 + clickCombo) + 'px';
@@ -742,6 +745,7 @@
       }
     }
 
+    // Both click and touch
     document.addEventListener('click', e => handleClick(e.clientX, e.clientY));
     document.addEventListener('touchstart', e => {
       e.preventDefault();
@@ -750,6 +754,7 @@
       }
     }, { passive: false });
 
+    // ── Start / end ──
     function startGame() {
       state = STATE.PLAYING;
       escapeProgress = 0;
@@ -761,6 +766,7 @@
       characterShake = { x: 0, y: 0 };
       particles = [];
       sparks = [];
+      lastFrameTime = performance.now();
       initRopes();
       centerMessage.style.display = 'none';
       levelDisplay.textContent = `Level ${level}`;
@@ -786,7 +792,6 @@
       dangerFill.style.width = dangerProgress + '%';
       scoreDisplay.textContent = `Score: ${score}`;
 
-      // Pulse danger bar when high
       if (dangerProgress > 70) {
         dangerFill.style.boxShadow = `0 0 ${10 + Math.sin(Date.now() * 0.01) * 5}px rgba(239, 68, 68, 0.6)`;
       } else {
@@ -794,34 +799,36 @@
       }
     }
 
-    function update() {
+    // ── Main update (delta‑time based) ──
+    function update(dt) {
       if (state === STATE.PLAYING) {
         const cfg = getLevelConfig();
 
-        // Danger increases over time
-        dangerProgress = Math.min(100, dangerProgress + cfg.dangerSpeed);
+        // danger increases over time (per‑second rate × dt)
+        dangerProgress = Math.min(100, dangerProgress + cfg.dangerPerSec * dt);
 
-        // Escape decays when not clicking
-        escapeProgress = Math.max(0, escapeProgress - cfg.escapeDecay);
-
-        // Wiggle decays
-        wiggleAmount *= 0.93;
-        characterShake.x *= 0.85;
-        characterShake.y *= 0.85;
-
-        // Check win/lose
+        // ── check win/lose BEFORE applying decay ──
+        // (otherwise a click that sets escape to 100 gets decayed to 99.97 before we see it)
         if (escapeProgress >= 100) {
           gameWon();
         } else if (dangerProgress >= 100) {
           gameLost();
+        } else {
+          // only decay if the round is still going
+          escapeProgress = Math.max(0, escapeProgress - cfg.escapeDecayPerSec * dt);
         }
+
+        // wiggle visual decay
+        wiggleAmount *= Math.pow(0.01, dt);       // half‑life ~0.22s
+        characterShake.x *= Math.pow(0.001, dt);
+        characterShake.y *= Math.pow(0.001, dt);
 
         updateUI();
       }
 
       if (state === STATE.WON) {
-        cutAnimProgress = Math.min(1, cutAnimProgress + 0.015);
-        wiggleAmount = Math.max(wiggleAmount * 0.95, 0);
+        cutAnimProgress = Math.min(1, cutAnimProgress + 1.0 * dt);  // ~1s animation
+        wiggleAmount *= Math.pow(0.05, dt);
         if (cutAnimProgress >= 1 && centerMessage.style.display === 'none') {
           centerMessage.innerHTML = `
             <h1 style="color: #4ade80;">🎉 You Escaped!</h1>
@@ -833,7 +840,7 @@
       }
 
       if (state === STATE.LOST) {
-        escapeAnimProgress = Math.min(1, escapeAnimProgress + 0.02);
+        escapeAnimProgress = Math.min(1, escapeAnimProgress + 1.2 * dt);
         if (escapeAnimProgress >= 1 && centerMessage.style.display === 'none') {
           centerMessage.innerHTML = `
             <h1 style="color: #ef4444;">💀 The Rope Cut!</h1>
@@ -845,7 +852,7 @@
       }
 
       updateRopes();
-      updateParticles();
+      updateParticles(dt);
     }
 
     function draw() {
@@ -855,17 +862,29 @@
       drawCharacter();
       drawSawBlade();
       drawParticles();
-      restoreScreenShake();
+      restoreScreenShake(0);
     }
 
-    function gameLoop() {
-      update();
+    // ── Game loop with proper delta time ──
+    function gameLoop(timestamp) {
+      // dt in seconds, capped at 100ms to avoid spiral-of-death on tab-switch
+      const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.1);
+      lastFrameTime = timestamp;
+
+      update(dt);
       draw();
+
+      // Decay screen shake here (outside draw's save/restore)
+      if (shakeIntensity > 0.1) {
+        shakeIntensity *= Math.pow(0.001, dt);
+      }
+
       requestAnimationFrame(gameLoop);
     }
 
     initRopes();
-    gameLoop();
+    lastFrameTime = performance.now();
+    requestAnimationFrame(gameLoop);
   </script>
 </body>
 </html>
