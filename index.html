@@ -3,222 +3,419 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wiggle Escape!</title>
+  <title>Wiggle Escape — Rope Cut Challenge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background: #1a1a2e;
+      background: #0f172a;
       overflow: hidden;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       user-select: none;
       -webkit-user-select: none;
-      cursor: pointer;
+      cursor: crosshair;
+      color: #fff;
     }
 
     canvas {
       display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
     }
 
+    /* ── Top HUD ── */
     #ui-overlay {
       position: fixed;
-      top: 0; left: 0; right: 0;
-      padding: 20px 30px;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 16px 24px;
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       pointer-events: none;
       z-index: 10;
+      gap: 16px;
     }
 
     .bar-container {
-      width: 280px;
-      background: rgba(0,0,0,0.5);
-      border-radius: 12px;
-      padding: 10px 14px;
-      backdrop-filter: blur(8px);
+      flex: 1;
+      max-width: 320px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 12px 18px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .bar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
     }
 
     .bar-label {
       font-size: 13px;
-      font-weight: 700;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 2px;
-      margin-bottom: 6px;
+      letter-spacing: 1.5px;
+    }
+
+    .bar-sublabel {
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.85);
     }
 
     .bar-track {
       width: 100%;
-      height: 18px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 9px;
+      height: 20px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 10px;
       overflow: hidden;
       position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .bar-fill {
       height: 100%;
-      border-radius: 9px;
-      transition: width 0.05s linear;
+      border-radius: 10px;
+      transition: width 0.05s ease-out;
       position: relative;
     }
 
     .bar-fill::after {
       content: '';
       position: absolute;
-      top: 2px; left: 4px; right: 4px;
+      top: 2px;
+      left: 4px;
+      right: 4px;
       height: 5px;
-      background: rgba(255,255,255,0.3);
+      background: rgba(255, 255, 255, 0.35);
       border-radius: 3px;
     }
 
-    #escape-label { color: #4ade80; }
-    #escape-fill { background: linear-gradient(90deg, #22c55e, #4ade80); }
+    /* Target threshold line on HPS track */
+    #hps-target-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: #fbbf24;
+      box-shadow: 0 0 8px #fbbf24;
+      z-index: 5;
+      display: block;
+    }
 
-    #danger-label { color: #f87171; }
-    #danger-fill { background: linear-gradient(90deg, #dc2626, #f87171); }
+    #cut-label { color: #f97316; }
+    #cut-fill {
+      background: linear-gradient(90deg, #ea580c, #f97316, #fbbf24);
+      box-shadow: 0 0 15px rgba(249, 115, 22, 0.5);
+    }
 
+    #hps-label { color: #38bdf8; }
+    #hps-fill {
+      background: linear-gradient(90deg, #0284c7, #38bdf8);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+    }
+
+    /* ── Center Header Pill ── */
+    #center-pill {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 10px 24px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    #level-title {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #tier-badge {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    #timer-display {
+      font-size: 14px;
+      font-weight: 800;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #score-badge {
+      font-size: 12px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    /* ── Center Modals / Prompts ── */
     #center-message {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
-      z-index: 20;
-      pointer-events: none;
+      z-index: 30;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 24px;
+      padding: 36px 44px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+      max-width: 480px;
+      width: 90%;
+      pointer-events: auto;
     }
 
     #center-message h1 {
-      font-size: 52px;
+      font-size: 38px;
       font-weight: 900;
-      text-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      margin-bottom: 10px;
+      margin-bottom: 12px;
+      line-height: 1.1;
     }
 
     #center-message p {
-      font-size: 20px;
-      color: rgba(255,255,255,0.8);
-      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
-    }
-
-    #click-prompt {
       font-size: 16px;
-      color: rgba(255,255,255,0.6);
-      margin-top: 20px;
-      animation: pulse 1.2s ease-in-out infinite;
+      color: rgba(255, 255, 255, 0.8);
+      line-height: 1.5;
+      margin-bottom: 8px;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 0.4; }
-      50% { opacity: 1; }
+    .level-stat-row {
+      display: flex;
+      justify-content: space-around;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 12px;
+      margin: 16px 0;
     }
 
-    #score-display {
-      position: fixed;
-      top: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 18px;
-      color: rgba(255,255,255,0.7);
-      font-weight: 600;
-      z-index: 10;
-      pointer-events: none;
+    .stat-box {
+      text-align: center;
     }
 
-    #level-display {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 24px;
-      color: #fbbf24;
+    .stat-val {
+      font-size: 22px;
       font-weight: 800;
+      color: #fbbf24;
+    }
+
+    .stat-lbl {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .modal-btn {
+      display: inline-block;
+      margin-top: 14px;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: #fff;
+      font-family: inherit;
+      border: none;
+      font-size: 17px;
+      font-weight: 800;
+      padding: 14px 34px;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(249, 115, 22, 0.4);
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .modal-btn:hover {
+      transform: scale(1.04);
+      box-shadow: 0 10px 30px rgba(249, 115, 22, 0.6);
+    }
+
+    #instructions-bottom {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.75);
       z-index: 10;
       pointer-events: none;
-      text-shadow: 0 2px 10px rgba(251, 191, 36, 0.4);
+      backdrop-filter: blur(8px);
+      text-align: center;
+    }
+
+    /* Sound toggle */
+    #sound-toggle {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 30;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 8px 12px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+    }
+
+    /* ── Floating FX ── */
+    .wiggle-text {
+      position: fixed;
+      font-size: 15px;
+      font-weight: 800;
+      pointer-events: none;
+      z-index: 9;
+      animation: floatUp 0.65s ease-out forwards;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+    }
+
+    @keyframes floatUp {
+      0% { transform: translate(-50%, 0) scale(0.9); opacity: 1; }
+      100% { transform: translate(-50%, -45px) scale(1.2); opacity: 0; }
     }
 
     .click-ripple {
       position: fixed;
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
-      border: 3px solid rgba(74, 222, 128, 0.8);
+      border: 3px solid rgba(249, 115, 22, 0.8);
       pointer-events: none;
-      z-index: 5;
-      animation: ripple 0.5s ease-out forwards;
+      z-index: 6;
+      animation: ripple 0.45s ease-out forwards;
     }
 
     @keyframes ripple {
-      0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
-      100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
-    }
-
-    .wiggle-text {
-      position: fixed;
-      font-size: 14px;
-      font-weight: 700;
-      color: #4ade80;
-      pointer-events: none;
-      z-index: 5;
-      animation: floatUp 0.7s ease-out forwards;
-    }
-
-    @keyframes floatUp {
-      0% { transform: translate(-50%, 0) scale(1); opacity: 1; }
-      100% { transform: translate(-50%, -50px) scale(1.3); opacity: 0; }
-    }
-
-    #instructions {
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(255,255,255,0.4);
-      font-size: 13px;
-      z-index: 10;
-      pointer-events: none;
-      text-align: center;
+      0% { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
     }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
 
+  <!-- Top HUD Overlay -->
   <div id="ui-overlay">
+    <!-- Rope Cut Progress -->
     <div class="bar-container">
-      <div class="bar-label" id="escape-label">🏃 Wiggle Escape</div>
+      <div class="bar-header">
+        <span class="bar-label" id="cut-label">🔪 Rope Cut</span>
+        <span class="bar-sublabel" id="cut-percent">0 / 25 Hits (0%)</span>
+      </div>
       <div class="bar-track">
-        <div class="bar-fill" id="escape-fill" style="width: 0%"></div>
+        <div class="bar-fill" id="cut-fill" style="width: 0%"></div>
       </div>
     </div>
+
+    <!-- Center Info Pill -->
+    <div id="center-pill">
+      <div id="level-title">
+        <span id="level-num">Level 1</span>
+        <span id="tier-badge" style="background: rgba(74, 222, 128, 0.2); color: #4ade80;">NOVICE</span>
+      </div>
+      <div id="timer-display">
+        <span>⏱️ Time:</span>
+        <span id="timer-val" style="color: #fbbf24;">16.0s</span>
+      </div>
+      <div id="score-badge">Score: 0</div>
+    </div>
+
+    <!-- Hits Per Second Meter -->
     <div class="bar-container">
-      <div class="bar-label" id="danger-label">🔪 Rope Cutting</div>
+      <div class="bar-header">
+        <span class="bar-label" id="hps-label">⚡ Hit Speed</span>
+        <span class="bar-sublabel" id="hps-ratio">0.0 / 3.0 HPS</span>
+      </div>
       <div class="bar-track">
-        <div class="bar-fill" id="danger-fill" style="width: 0%"></div>
+        <div id="hps-target-line" style="left: 30%;"></div>
+        <div class="bar-fill" id="hps-fill" style="width: 0%"></div>
       </div>
     </div>
   </div>
 
-  <div id="level-display">Level 1</div>
-  <div id="score-display">Score: 0</div>
+  <!-- Bottom Instructions -->
+  <div id="instructions-bottom">
+    Hit rapidly to cut the rope! Maintain the required Hits/Sec to slice through!
+  </div>
 
+  <!-- Sound Toggle -->
+  <button id="sound-toggle">🔊 Sound: ON</button>
+
+  <!-- Center Popup (Start / Win / Lose) -->
   <div id="center-message">
-    <h1 style="color: #fbbf24;">🪢 Wiggle Escape!</h1>
-    <p>Click anywhere rapidly to wiggle free before the rope cuts!</p>
-    <div id="click-prompt">Click to Start</div>
-  </div>
+    <h1 style="color: #fbbf24;">🪢 Cut The Rope!</h1>
+    <p>The character is trapped! Rapidly hit the screen to cut through the rope.</p>
+    <p style="font-size: 14px; color: #94a3b8;">
+      The rope will <strong>never cut on its own</strong>. Maintain the required <strong>Hits Per Second</strong> and land enough hits before time runs out!
+    </p>
 
-  <div id="instructions">Click rapidly anywhere on screen to wiggle free!</div>
+    <div class="level-stat-row">
+      <div class="stat-box">
+        <div class="stat-val" id="modal-req-hps">3.0</div>
+        <div class="stat-lbl">Req Hits/Sec</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="modal-hits-needed">25</div>
+        <div class="stat-lbl">Hits Needed</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="modal-time-limit">16.0s</div>
+        <div class="stat-lbl">Time Limit</div>
+      </div>
+    </div>
+
+    <button id="modal-action-btn" class="modal-btn">Click to Start Level 1</button>
+  </div>
 
   <script>
+    // ── Canvas Setup ──
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const escapeFill = document.getElementById('escape-fill');
-    const dangerFill = document.getElementById('danger-fill');
+    const cutFill = document.getElementById('cut-fill');
+    const cutPercent = document.getElementById('cut-percent');
+    const hpsFill = document.getElementById('hps-fill');
+    const hpsRatio = document.getElementById('hps-ratio');
+    const hpsTargetLine = document.getElementById('hps-target-line');
+    const levelNum = document.getElementById('level-num');
+    const tierBadge = document.getElementById('tier-badge');
+    const timerVal = document.getElementById('timer-val');
+    const scoreBadge = document.getElementById('score-badge');
     const centerMessage = document.getElementById('center-message');
-    const levelDisplay = document.getElementById('level-display');
-    const scoreDisplay = document.getElementById('score-display');
+    const soundToggle = document.getElementById('sound-toggle');
+    const instructionsBottom = document.getElementById('instructions-bottom');
 
     let W, H;
     function resize() {
@@ -228,106 +425,192 @@
     resize();
     window.addEventListener('resize', resize);
 
-    // ── Game state ──
-    const STATE = { MENU: 0, PLAYING: 1, WON: 2, LOST: 3 };
+    // ── Procedural Web Audio ──
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    soundToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      soundEnabled = !soundEnabled;
+      soundToggle.textContent = soundEnabled ? '🔊 Sound: ON' : '🔇 Sound: OFF';
+    });
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      try {
+        initAudio();
+        const now = audioCtx.currentTime;
+
+        if (type === 'slice') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(450, now);
+          osc.frequency.exponentialRampToValueAtTime(120, now + 0.12);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'clink') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(100, now + 0.08);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } else if (type === 'snap') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(600, now);
+          osc.frequency.exponentialRampToValueAtTime(150, now + 0.18);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.18);
+        } else if (type === 'win') {
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+            gain.gain.setValueAtTime(0.25, now + idx * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.35);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + idx * 0.08);
+            osc.stop(now + idx * 0.08 + 0.35);
+          });
+        } else if (type === 'lose') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.linearRampToValueAtTime(90, now + 0.4);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.4);
+        }
+      } catch (e) {}
+    }
+
+    // ── Game State Machine ──
+    const STATE = {
+      MENU: 0,
+      PLAYING: 1,
+      WON_ANIM: 2,
+      WON_MENU: 3,
+      LOST_ANIM: 4,
+      LOST_MENU: 5
+    };
+
     let state = STATE.MENU;
-    let escapeProgress = 0;   // 0‑100
-    let dangerProgress = 0;   // 0‑100
-    let score = 0;
     let level = 1;
+    let score = 0;
+    let hitsLanded = 0;           // exact hits landed toward level goal
+    let cutProgress = 0;          // 0-100%
+    let timeRemaining = 16.0;     // seconds
+    let lastSnapMilestone = 0;    // tracks 25%, 50%, 75% snaps
     let wiggleAmount = 0;
-    let lastClickTime = 0;
-    let clickCombo = 0;
     let characterShake = { x: 0, y: 0 };
-    let ropeSegments = [];
+    let shakeIntensity = 0;
+    let lastFrameTime = performance.now();
+    let winAnimProgress = 0;
+    let bladeAnim = 0;
+    let bladeCoord = { x: 0, y: 0, angle: 0 };
+    let decayAccumulator = 0;
+    let modalTimeoutId = null;
+
+    // Hits per second tracker
+    let clickTimestamps = [];
+    let currentHps = 0;
+    let bestHpsThisRound = 0;
+    let combo = 0;
+    let lastClickTime = 0;
+
+    // Particles & slashes
     let particles = [];
-    let sparks = [];
-    let cutAnimProgress = 0;
-    let escapeAnimProgress = 0;
-    let lastFrameTime = 0;
+    let ropeSegments = [];
 
-    // ── Difficulty mechanic state ──
-    let nextTightenTime = 0;        // countdown to next rope-tighten event (seconds)
-    let sawSurgeTimer = 0;          // countdown to next saw surge
-    let sawSurgeActive = 0;         // remaining duration of active surge
-    let tightenFlash = 0;           // visual flash when rope tightens
-    let gameElapsed = 0;            // seconds since round started
+    function clearPendingModal() {
+      if (modalTimeoutId) {
+        clearTimeout(modalTimeoutId);
+        modalTimeoutId = null;
+      }
+    }
 
-    // ── Level config (all values are PER SECOND, not per frame) ──
-    function getLevelConfig() {
-      //
-      // DIFFICULTY TIERS
-      //   L1‑3   Easy        – learn the game
-      //   L4‑6   Medium      – decay bites, first rope‑tighten events
-      //   L7‑9   Hard        – saw surges, progress‑dependent decay
-      //   L10‑12 Insane      – very tight timing, heavy knockbacks
-      //   L13+   Nightmare   – survive if you can
-      //
-      const tier = level <= 3 ? 'easy' : level <= 6 ? 'medium' : level <= 9 ? 'hard' : level <= 12 ? 'insane' : 'nightmare';
+    // ── High-Difficulty Level Config ──
+    // Substantially harder at higher levels with more hits required!
+    function getLevelConfig(lvl) {
+      // Required Hits Per Second (HPS)
+      const requiredHps = 2.0 + lvl * 1.0; // L1: 3.0, L2: 4.0, L3: 5.0, L4: 6.0, L5: 7.0, L6: 8.0, L7: 9.0, L8: 10.0, etc.
 
-      // Time until rope cuts  (L1 = 12s → L6 = 8s → L10 = 5.5s → L15 = 4s, floor 3.5s)
-      const totalTime = Math.max(3.5, 12 - level * 0.7);
+      // Substantially higher hits needed at hard levels!
+      let hitsNeeded;
+      if (lvl === 1) hitsNeeded = 25;
+      else if (lvl === 2) hitsNeeded = 40;
+      else if (lvl === 3) hitsNeeded = 65;
+      else if (lvl === 4) hitsNeeded = 95;
+      else if (lvl === 5) hitsNeeded = 140;
+      else if (lvl === 6) hitsNeeded = 195;
+      else if (lvl === 7) hitsNeeded = 260;
+      else if (lvl === 8) hitsNeeded = 335;
+      else if (lvl === 9) hitsNeeded = 420;
+      else if (lvl === 10) hitsNeeded = 515;
+      else hitsNeeded = Math.floor(515 + (lvl - 10) * 110);
 
-      // Click gain  (L1 = 5.5% → L6 = 3.5% → L10 = 2.5% → floor 1.8%)
-      const escapePerClick = Math.max(1.8, 5.5 - level * 0.35);
+      // Tension recovery (hits lost per second if hitting below required HPS)
+      const hitDecayRate = Math.min(25, 4.0 + lvl * 2.0);
 
-      // Base decay  (L1 = 1% → L6 = 4.5% → L10 = 8% → capped at 14%)
-      const escapeDecayPerSec = Math.min(14, 1.0 + level * 0.7);
+      // Fair, high-intensity time limits (seconds)
+      const timeLimit = Math.max(16, 14 + hitsNeeded * 0.08);
 
-      // Combo window shrinks at higher levels (500ms → floor 250ms)
-      const comboWindow = Math.max(250, 500 - level * 20);
+      // Rope strands bound around character
+      const ropeCount = Math.min(10, 3 + Math.floor(lvl / 2));
 
-      // Max combo cap (starts 15, shrinks to 8 at high levels)
-      const maxCombo = Math.max(8, 15 - Math.floor(level / 3));
-
-      // ── New mechanic: Rope Tighten (knockback events) ──
-      // Starts at level 4. Periodically knocks escape progress back.
-      const tightenEnabled = level >= 4;
-      const tightenInterval = Math.max(1.5, 5 - level * 0.3);   // seconds between tightens
-      const tightenAmount = Math.min(15, 3 + level * 1.2);       // % knocked off
-
-      // ── New mechanic: Saw Surge ──
-      // Starts at level 6. Danger bar temporarily speeds up 2‑3x.
-      const surgeEnabled = level >= 6;
-      const surgeInterval = Math.max(2, 6 - level * 0.35);       // seconds between surges
-      const surgeDuration = Math.min(2.0, 0.6 + level * 0.08);   // how long a surge lasts
-      const surgeMultiplier = Math.min(3.5, 1.8 + level * 0.12); // speed multiplier during surge
-
-      // ── New mechanic: Progress‑dependent decay ──
-      // Starts at level 3. The higher your escape %, the faster it drains.
-      const progressDecayEnabled = level >= 3;
-      const progressDecayFactor = Math.min(1.5, 0.2 + level * 0.1); // extra multiplier at 100%
+      // Tier styling
+      let tier = 'NOVICE';
+      let tierColor = '#4ade80';
+      if (lvl >= 3 && lvl <= 4) { tier = 'MEDIUM'; tierColor = '#38bdf8'; }
+      else if (lvl >= 5 && lvl <= 6) { tier = 'HARD'; tierColor = '#fbbf24'; }
+      else if (lvl >= 7 && lvl <= 8) { tier = 'EXPERT'; tierColor = '#f97316'; }
+      else if (lvl >= 9 && lvl <= 10) { tier = 'MASTER'; tierColor = '#ef4444'; }
+      else if (lvl >= 11) { tier = 'IMPOSSIBLE'; tierColor = '#c084fc'; }
 
       return {
+        level: lvl,
+        requiredHps: parseFloat(requiredHps.toFixed(1)),
+        hitsNeeded,
+        hitDecayRate,
+        timeLimit: parseFloat(timeLimit.toFixed(1)),
+        ropeCount,
         tier,
-        totalTime,
-        dangerPerSec:          100 / totalTime,
-        escapePerClick,
-        escapeDecayPerSec,
-        comboWindow,
-        maxCombo,
-        ropeCount:             Math.min(3 + Math.floor(level / 2), 10),
-        tightenEnabled,
-        tightenInterval,
-        tightenAmount,
-        surgeEnabled,
-        surgeInterval,
-        surgeDuration,
-        surgeMultiplier,
-        progressDecayEnabled,
-        progressDecayFactor,
+        tierColor
       };
     }
 
-    function getDifficultyLabel() {
-      if (level <= 3)  return { text: 'EASY',      color: '#4ade80' };
-      if (level <= 6)  return { text: 'MEDIUM',    color: '#fbbf24' };
-      if (level <= 9)  return { text: 'HARD',      color: '#f97316' };
-      if (level <= 12) return { text: 'INSANE',    color: '#ef4444' };
-      return              { text: 'NIGHTMARE', color: '#a855f7' };
-    }
-
-    // ── Rope physics ──
+    // ── Rope Physics ──
     class RopePoint {
       constructor(x, y, pinned = false) {
         this.x = x; this.y = y;
@@ -338,7 +621,7 @@
 
     function initRopes() {
       ropeSegments = [];
-      const cfg = getLevelConfig();
+      const cfg = getLevelConfig(level);
       const cx = W / 2;
       const cy = H / 2 + 20;
 
@@ -348,20 +631,36 @@
         const segments = 12;
         for (let i = 0; i <= segments; i++) {
           const t = i / segments;
-          const radius = 40 + t * (80 + r * 15);
+          const radius = 38 + t * (75 + r * 14);
           const px = cx + Math.cos(angle + t * 0.5) * radius * t;
           const py = cy + Math.sin(angle + t * 0.5) * radius * t;
           rope.push(new RopePoint(px, py, i === 0));
         }
-        ropeSegments.push(rope);
+        ropeSegments.push({
+          points: rope,
+          snapped: false,
+          snapProgress: 0,
+          snapVelocity: { x: (Math.random() - 0.5) * 16, y: -Math.random() * 12 - 4 }
+        });
       }
     }
 
-    function updateRopes() {
-      const gravity = 0.3;
-      const wiggleFactor = wiggleAmount * 3;
+    function updateRopes(dt) {
+      const gravity = 0.35;
+      const wiggleFactor = wiggleAmount * 2.5;
 
-      ropeSegments.forEach(rope => {
+      ropeSegments.forEach((segment) => {
+        if (segment.snapped) {
+          segment.points.forEach(p => {
+            p.x += segment.snapVelocity.x * dt * 60;
+            p.y += segment.snapVelocity.y * dt * 60;
+            segment.snapVelocity.y += gravity * 0.5;
+          });
+          segment.snapProgress = Math.min(1, segment.snapProgress + dt * 1.5);
+          return;
+        }
+
+        const rope = segment.points;
         rope.forEach(p => {
           if (p.pinned) {
             p.x = W / 2 + Math.sin(Date.now() * 0.003) * wiggleFactor * 2;
@@ -376,7 +675,6 @@
           p.y += vy + gravity + (Math.random() - 0.5) * wiggleFactor * 0.5;
         });
 
-        // Constraints
         for (let iter = 0; iter < 3; iter++) {
           for (let i = 0; i < rope.length - 1; i++) {
             const a = rope[i], b = rope[i + 1];
@@ -392,50 +690,49 @@
     }
 
     function drawRopes() {
-      const brokenAmount = state === STATE.WON ? cutAnimProgress : 0;
-      const tensionColor = state === STATE.LOST ? '#ef4444' :
-        `hsl(${40 - dangerProgress * 0.4}, 80%, ${55 + Math.sin(Date.now() * 0.01) * 10}%)`;
+      const cutFrac = cutProgress / 100;
 
-      ropeSegments.forEach((rope, ri) => {
-        if (brokenAmount > 0 && ri < ropeSegments.length * brokenAmount) {
-          // broken rope flying apart
+      ropeSegments.forEach((segment) => {
+        const rope = segment.points;
+
+        if (segment.snapped) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, 1 - segment.snapProgress);
           ctx.strokeStyle = '#8B7355';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([4, 4]);
-          ctx.globalAlpha = 1 - brokenAmount;
+          ctx.lineWidth = 3;
+          ctx.setLineDash([6, 6]);
           ctx.beginPath();
-          rope.forEach((p, i) => {
-            const flyX = p.x + (Math.random() - 0.5) * brokenAmount * 100;
-            const flyY = p.y - brokenAmount * 150 * Math.random();
-            i === 0 ? ctx.moveTo(flyX, flyY) : ctx.lineTo(flyX, flyY);
-          });
+          rope.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
           ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.globalAlpha = 1;
+          ctx.restore();
           return;
         }
 
-        // shadow
-        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        const ropeHue = Math.max(15, 38 - cutFrac * 25);
+        const tensionColor = `hsl(${ropeHue}, 85%, 55%)`;
+
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
         ctx.lineWidth = 6;
         ctx.beginPath();
         rope.forEach((p, i) => i === 0 ? ctx.moveTo(p.x + 2, p.y + 3) : ctx.lineTo(p.x + 2, p.y + 3));
         ctx.stroke();
 
-        // main rope
         ctx.strokeStyle = tensionColor;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 4.5;
         ctx.lineCap = 'round';
         ctx.beginPath();
         rope.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
         ctx.stroke();
 
-        // highlight
-        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        rope.forEach((p, i) => i === 0 ? ctx.moveTo(p.x - 1, p.y - 1) : ctx.lineTo(p.x - 1, p.y - 1));
-        ctx.stroke();
+        if (cutProgress > 30) {
+          ctx.strokeStyle = '#fbbf24';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 8]);
+          ctx.beginPath();
+          rope.forEach((p, i) => i === 0 ? ctx.moveTo(p.x - 1, p.y - 1) : ctx.lineTo(p.x - 1, p.y - 1));
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
       });
     }
 
@@ -447,53 +744,58 @@
 
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(Math.sin(Date.now() * 0.015) * wiggle * 0.15);
+      ctx.rotate(Math.sin(Date.now() * 0.015) * wiggle * 0.12);
 
-      // shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ctx.beginPath();
-      ctx.ellipse(3, 55, 25, 8, 0, 0, Math.PI * 2);
+      ctx.ellipse(3, 58, 28, 9, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // body
+      if (state === STATE.WON_ANIM || state === STATE.WON_MENU) {
+        const jumpY = -Math.sin(winAnimProgress * Math.PI) * 45;
+        ctx.translate(0, jumpY);
+      }
+
       const bodyGrad = ctx.createLinearGradient(-18, -25, 18, 40);
       bodyGrad.addColorStop(0, '#6366f1');
       bodyGrad.addColorStop(1, '#4338ca');
       ctx.fillStyle = bodyGrad;
       ctx.beginPath();
-      ctx.roundRect(-18, -15, 36, 55, 8);
+      ctx.roundRect(-18, -15, 36, 55, 10);
       ctx.fill();
 
-      // arms wiggling
-      const armWiggle = Math.sin(Date.now() * 0.02) * wiggle * 8;
       ctx.strokeStyle = '#6366f1';
       ctx.lineWidth = 7;
       ctx.lineCap = 'round';
 
-      ctx.beginPath();
-      ctx.moveTo(-18, 0);
-      ctx.quadraticCurveTo(-35 + armWiggle, -10, -30 + armWiggle * 1.5, -25);
-      ctx.stroke();
+      if (state === STATE.WON_ANIM || state === STATE.WON_MENU) {
+        ctx.beginPath();
+        ctx.moveTo(-18, 0); ctx.lineTo(-32, -35);
+        ctx.moveTo(18, 0); ctx.lineTo(32, -35);
+        ctx.stroke();
+      } else {
+        const armWiggle = Math.sin(Date.now() * 0.02) * wiggle * 8;
+        ctx.beginPath();
+        ctx.moveTo(-18, 0);
+        ctx.quadraticCurveTo(-35 + armWiggle, -10, -28 + armWiggle * 1.5, -20);
+        ctx.stroke();
 
-      ctx.beginPath();
-      ctx.moveTo(18, 0);
-      ctx.quadraticCurveTo(35 - armWiggle, -10, 30 - armWiggle * 1.5, -25);
-      ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(18, 0);
+        ctx.quadraticCurveTo(35 - armWiggle, -10, 28 - armWiggle * 1.5, -20);
+        ctx.stroke();
+      }
 
-      // legs
       const legWiggle = Math.cos(Date.now() * 0.018) * wiggle * 5;
       ctx.strokeStyle = '#4338ca';
       ctx.lineWidth = 8;
       ctx.beginPath();
-      ctx.moveTo(-8, 40);
-      ctx.lineTo(-12 + legWiggle, 58);
+      ctx.moveTo(-8, 40); ctx.lineTo(-12 + legWiggle, 58);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(8, 40);
-      ctx.lineTo(12 - legWiggle, 58);
+      ctx.moveTo(8, 40); ctx.lineTo(12 - legWiggle, 58);
       ctx.stroke();
 
-      // head
       const headGrad = ctx.createRadialGradient(0, -28, 2, 0, -28, 16);
       headGrad.addColorStop(0, '#fcd7a0');
       headGrad.addColorStop(1, '#f0b87a');
@@ -502,44 +804,39 @@
       ctx.arc(0, -28, 16, 0, Math.PI * 2);
       ctx.fill();
 
-      // ── face ──
-      if (state === STATE.LOST) {
-        // X eyes
+      if (state === STATE.LOST_ANIM || state === STATE.LOST_MENU) {
         ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         [-5, 5].forEach(ex => {
           ctx.beginPath();
-          ctx.moveTo(ex - 3, -33); ctx.lineTo(ex + 3, -29);
-          ctx.moveTo(ex + 3, -33); ctx.lineTo(ex - 3, -29);
+          ctx.moveTo(ex - 3, -33); ctx.lineTo(ex + 3, -27);
+          ctx.moveTo(ex + 3, -33); ctx.lineTo(ex - 3, -27);
           ctx.stroke();
         });
-        // open mouth
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(0, -22, 5, 0, Math.PI);
+        ctx.arc(0, -20, 4, 0, Math.PI);
         ctx.stroke();
-      } else if (state === STATE.WON) {
+      } else if (state === STATE.WON_ANIM || state === STATE.WON_MENU) {
         ctx.fillStyle = '#333';
         ctx.beginPath();
-        ctx.arc(-5, -31, 2, 0, Math.PI * 2);
-        ctx.arc(5, -31, 2, 0, Math.PI * 2);
+        ctx.arc(-5, -31, 2.5, 0, Math.PI * 2);
+        ctx.arc(5, -31, 2.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(0, -26, 6, 0.1, Math.PI - 0.1);
+        ctx.arc(0, -26, 6, 0.2, Math.PI - 0.2);
         ctx.stroke();
       } else {
-        // struggling face
         const eyeShift = Math.sin(Date.now() * 0.01) * wiggle;
         ctx.fillStyle = '#333';
         ctx.beginPath();
-        ctx.arc(-5 + eyeShift, -31, 2 + wiggle * 0.3, 0, Math.PI * 2);
-        ctx.arc(5 + eyeShift, -31, 2 + wiggle * 0.3, 0, Math.PI * 2);
+        ctx.arc(-5 + eyeShift, -31, 2.2, 0, Math.PI * 2);
+        ctx.arc(5 + eyeShift, -31, 2.2, 0, Math.PI * 2);
         ctx.fill();
 
-        // grimace mouth
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -550,10 +847,9 @@
         ctx.lineTo(5, -24 + mouthWiggle);
         ctx.stroke();
 
-        // sweat when danger high
-        if (dangerProgress > 50) {
-          const sweatY = -38 + (Date.now() % 1000) / 1000 * 15;
-          ctx.fillStyle = `rgba(100, 200, 255, ${1 - (Date.now() % 1000) / 1000})`;
+        if (timeRemaining < 6.0) {
+          const sweatY = -38 + ((Date.now() % 800) / 800) * 14;
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.8)';
           ctx.beginPath();
           ctx.ellipse(14, sweatY, 2.5, 3.5, 0.3, 0, Math.PI * 2);
           ctx.fill();
@@ -563,160 +859,96 @@
       ctx.restore();
     }
 
-    // ── Saw blade ──
-    function drawSawBlade() {
-      if (state !== STATE.PLAYING && state !== STATE.LOST) return;
-
-      const progress = dangerProgress / 100;
-      const sawX = W / 2 + 180 - progress * 130;
-      const sawY = H / 2 - 40;
-      const rotation = Date.now() * 0.008;
-      const sawRadius = 25;
-      const teeth = 10;
+    // ── Blade Strike Visual ──
+    function drawBladeStrike() {
+      if (bladeAnim <= 0) return;
 
       ctx.save();
-      ctx.translate(sawX, sawY);
-      ctx.rotate(rotation);
+      ctx.translate(bladeCoord.x, bladeCoord.y);
+      ctx.rotate(bladeCoord.angle);
+      ctx.globalAlpha = Math.min(1, bladeAnim * 2);
 
-      ctx.fillStyle = '#94a3b8';
-      ctx.beginPath();
-      for (let i = 0; i < teeth; i++) {
-        const a1 = (i / teeth) * Math.PI * 2;
-        const a2 = ((i + 0.5) / teeth) * Math.PI * 2;
-        ctx.lineTo(Math.cos(a1) * sawRadius, Math.sin(a1) * sawRadius);
-        ctx.lineTo(Math.cos(a2) * (sawRadius - 8), Math.sin(a2) * (sawRadius - 8));
-      }
-      ctx.closePath();
-      ctx.fill();
+      const bladeLen = 60 + (1 - bladeAnim) * 40;
+      const bladeGrad = ctx.createLinearGradient(-bladeLen / 2, 0, bladeLen / 2, 0);
+      bladeGrad.addColorStop(0, 'rgba(255,255,255,0)');
+      bladeGrad.addColorStop(0.5, '#fff');
+      bladeGrad.addColorStop(0.8, '#f97316');
+      bladeGrad.addColorStop(1, 'rgba(249, 115, 22, 0)');
 
-      ctx.fillStyle = '#64748b';
+      ctx.strokeStyle = bladeGrad;
+      ctx.lineWidth = 4 * bladeAnim;
       ctx.beginPath();
-      ctx.arc(0, 0, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#475569';
-      ctx.beginPath();
-      ctx.arc(0, 0, 4, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(-bladeLen / 2, 0);
+      ctx.lineTo(bladeLen / 2, 0);
+      ctx.stroke();
 
       ctx.restore();
-
-      // sparks when close
-      if (progress > 0.6) {
-        for (let i = 0; i < 2; i++) {
-          sparks.push({
-            x: sawX - 15,
-            y: sawY + (Math.random() - 0.5) * 20,
-            vx: -Math.random() * 4 - 1,
-            vy: (Math.random() - 0.5) * 4,
-            life: 1,
-            color: Math.random() > 0.5 ? '#fbbf24' : '#f97316',
-          });
-        }
-      }
     }
 
     // ── Particles ──
-    function spawnClickParticles(x, y) {
-      for (let i = 0; i < 6; i++) {
+    function spawnFiberParticles(x, y, count = 8) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 7 + 2;
         particles.push({
           x, y,
-          vx: (Math.random() - 0.5) * 8,
-          vy: (Math.random() - 0.5) * 8 - 2,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.5,
           life: 1,
-          size: Math.random() * 4 + 2,
-          color: ['#4ade80', '#22c55e', '#86efac', '#fbbf24'][Math.floor(Math.random() * 4)],
+          size: Math.random() * 3.5 + 1.5,
+          color: ['#fbbf24', '#f97316', '#d97706', '#ca8a04', '#ffffff'][Math.floor(Math.random() * 5)],
+          isFiber: Math.random() > 0.4
         });
       }
     }
 
-    function spawnExplosion(x, y, color, count) {
+    function spawnConfetti(x, y, count = 50) {
+      const colors = ['#4ade80', '#fbbf24', '#f97316', '#38bdf8', '#c084fc', '#f43f5e'];
       for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2;
-        const speed = Math.random() * 6 + 2;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 12 + 3;
         particles.push({
           x, y,
           vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life: 1,
-          size: Math.random() * 5 + 2,
-          color,
+          vy: Math.sin(angle) * speed - 4,
+          life: 1.5,
+          size: Math.random() * 5 + 3,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          isFiber: false
         });
       }
     }
 
     function updateParticles(dt) {
-      const decay = 1.5; // particles last ~0.67s
       particles = particles.filter(p => {
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += 0.1;
-        p.life -= decay * dt;
+        p.vy += 0.22;
+        p.life -= dt * 1.6;
         return p.life > 0;
       });
-      sparks = sparks.filter(s => {
-        s.x += s.vx;
-        s.y += s.vy;
-        s.vy += 0.15;
-        s.life -= 3 * dt;
-        return s.life > 0;
-      });
+
+      if (bladeAnim > 0) {
+        bladeAnim = Math.max(0, bladeAnim - dt * 4);
+      }
     }
 
     function drawParticles() {
       particles.forEach(p => {
-        ctx.globalAlpha = p.life;
+        ctx.globalAlpha = Math.max(0, p.life);
         ctx.fillStyle = p.color;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        if (p.isFiber) {
+          ctx.rect(p.x, p.y, p.size * 2, p.size * 0.7);
+        } else {
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        }
         ctx.fill();
-      });
-      sparks.forEach(s => {
-        ctx.globalAlpha = s.life;
-        ctx.fillStyle = s.color;
-        ctx.fillRect(s.x, s.y, 3, 2);
       });
       ctx.globalAlpha = 1;
     }
 
-    // ── Background ──
-    function drawBackground() {
-      const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, Math.max(W, H) * 0.7);
-
-      if (state === STATE.LOST) {
-        grad.addColorStop(0, '#3d1111');
-        grad.addColorStop(1, '#1a0505');
-      } else if (state === STATE.WON) {
-        grad.addColorStop(0, '#1a3d1a');
-        grad.addColorStop(1, '#0a1a0a');
-      } else {
-        const dangerTint = dangerProgress / 100;
-        const r = Math.floor(26 + dangerTint * 40);
-        const g = Math.floor(26 - dangerTint * 15);
-        const b = Math.floor(46 - dangerTint * 30);
-        grad.addColorStop(0, `rgb(${r+15},${g+10},${b+20})`);
-        grad.addColorStop(1, `rgb(${r},${g},${b})`);
-      }
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
-
-      // vignette
-      const vig = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.9);
-      vig.addColorStop(0, 'transparent');
-      vig.addColorStop(1, 'rgba(0,0,0,0.5)');
-      ctx.fillStyle = vig;
-      ctx.fillRect(0, 0, W, H);
-
-      // floor
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, H / 2 + 80);
-      ctx.lineTo(W, H / 2 + 80);
-      ctx.stroke();
-    }
-
-    // ── Screen shake ──
-    let shakeIntensity = 0;
+    // ── Screen Shake ──
     function applyScreenShake() {
       if (shakeIntensity > 0.1) {
         ctx.save();
@@ -729,1810 +961,432 @@
     function restoreScreenShake(dt) {
       if (shakeIntensity > 0.1) {
         ctx.restore();
-        // Decay shake using dt – half-life ~0.1s
         shakeIntensity *= Math.pow(0.001, dt);
       }
-    }
-
-    // ── Click handling ──
-    function handleClick(x, y) {
-      if (state === STATE.MENU) {
-        startGame();
-        return;
-      }
-
-      if (state === STATE.WON || state === STATE.LOST) {
-        if (cutAnimProgress >= 1 || escapeAnimProgress >= 1) {
-          if (state === STATE.WON) {
-            level++;
-            startGame();
-          } else {
-            level = 1;
-            score = 0;
-            startGame();
-          }
-        }
-        return;
-      }
-
-      if (state === STATE.PLAYING) {
-        const now = Date.now();
-        const timeSince = now - lastClickTime;
-        const cfg = getLevelConfig();
-
-        // Combo – window shrinks at higher levels
-        if (timeSince < cfg.comboWindow) {
-          clickCombo = Math.min(clickCombo + 1, cfg.maxCombo);
-        } else {
-          clickCombo = Math.max(0, clickCombo - 2);
-        }
-        lastClickTime = now;
-
-        const comboMultiplier = 1 + clickCombo * 0.12;
-        const gain = cfg.escapePerClick * comboMultiplier;
-        escapeProgress = Math.min(100, escapeProgress + gain);
-
-        // Trigger win immediately on the click that fills the bar
-        if (escapeProgress >= 100 && state === STATE.PLAYING) {
-          gameWon();
-          updateUI();
-        }
-
-        wiggleAmount = Math.min(5, wiggleAmount + 0.8);
-        characterShake.x = (Math.random() - 0.5) * 12;
-        characterShake.y = (Math.random() - 0.5) * 8;
-        shakeIntensity = 4 + clickCombo;
-
-        spawnClickParticles(x, y);
-
-        // ripple
-        const ripple = document.createElement('div');
-        ripple.className = 'click-ripple';
-        ripple.style.left = x + 'px';
-        ripple.style.top = y + 'px';
-        if (clickCombo > 3) {
-          ripple.style.borderColor = `hsl(${60 + clickCombo * 15}, 100%, 60%)`;
-        }
-        document.body.appendChild(ripple);
-        setTimeout(() => ripple.remove(), 500);
-
-        // floating combo text
-        if (clickCombo >= 2) {
-          const texts = ['WIGGLE!', 'FASTER!', 'GO GO GO!', 'ESCAPE!', '🔥 COMBO!', '⚡ POWER!'];
-          const ft = document.createElement('div');
-          ft.className = 'wiggle-text';
-          ft.textContent = texts[Math.min(clickCombo - 2, texts.length - 1)];
-          ft.style.left = x + 'px';
-          ft.style.top = (y - 20) + 'px';
-          ft.style.fontSize = (14 + clickCombo) + 'px';
-          document.body.appendChild(ft);
-          setTimeout(() => ft.remove(), 700);
-        }
-
-        score += Math.floor(comboMultiplier * 10);
-      }
-    }
-
-    // Both click and touch
-    document.addEventListener('click', e => handleClick(e.clientX, e.clientY));
-    document.addEventListener('touchstart', e => {
-      e.preventDefault();
-      for (const touch of e.touches) {
-        handleClick(touch.clientX, touch.clientY);
-      }
-    }, { passive: false });
-
-    // ── Start / end ──
-    function startGame() {
-      state = STATE.PLAYING;
-      escapeProgress = 0;
-      dangerProgress = 0;
-      wiggleAmount = 0;
-      clickCombo = 0;
-      cutAnimProgress = 0;
-      escapeAnimProgress = 0;
-      characterShake = { x: 0, y: 0 };
-      particles = [];
-      sparks = [];
-      gameElapsed = 0;
-      tightenFlash = 0;
-      sawSurgeActive = 0;
-
-      // Stagger first events so they don't hit immediately
-      const cfg = getLevelConfig();
-      nextTightenTime = cfg.tightenEnabled ? cfg.tightenInterval * 0.7 : 9999;
-      sawSurgeTimer = cfg.surgeEnabled ? cfg.surgeInterval * 0.8 : 9999;
-
-      lastFrameTime = performance.now();
-      initRopes();
-      centerMessage.style.display = 'none';
-
-      const diff = getDifficultyLabel();
-      levelDisplay.innerHTML = `Level ${level} <span style="color:${diff.color}; font-size:14px; margin-left:8px;">${diff.text}</span>`;
-      updateUI();
-    }
-
-    function gameWon() {
-      state = STATE.WON;
-      score += level * 100;
-      spawnExplosion(W / 2, H / 2, '#4ade80', 40);
-      spawnExplosion(W / 2, H / 2, '#fbbf24', 30);
-      shakeIntensity = 20;
-    }
-
-    function gameLost() {
-      state = STATE.LOST;
-      spawnExplosion(W / 2, H / 2, '#ef4444', 50);
-      shakeIntensity = 30;
-    }
-
-    function updateUI() {
-      escapeFill.style.width = escapeProgress + '%';
-      dangerFill.style.width = dangerProgress + '%';
-      scoreDisplay.textContent = `Score: ${score}`;
-
-      // Pulse danger bar when high or during saw surge
-      if (sawSurgeActive > 0) {
-        dangerFill.style.boxShadow = `0 0 18px rgba(249, 115, 22, 0.9)`;
-        document.getElementById('danger-label').textContent = '🔪 ⚡ SAW SURGE!';
-      } else if (dangerProgress > 70) {
-        dangerFill.style.boxShadow = `0 0 ${10 + Math.sin(Date.now() * 0.01) * 5}px rgba(239, 68, 68, 0.6)`;
-        document.getElementById('danger-label').textContent = '🔪 Rope Cutting';
-      } else {
-        dangerFill.style.boxShadow = 'none';
-        document.getElementById('danger-label').textContent = '🔪 Rope Cutting';
-      }
-    }
-
-    // ── Main update (delta‑time based) ──
-    function update(dt) {
-      if (state === STATE.PLAYING) {
-        const cfg = getLevelConfig();
-        gameElapsed += dt;
-
-        // ── 1. Danger increases (with saw surge) ──
-        let dangerSpeed = cfg.dangerPerSec;
-        if (cfg.surgeEnabled) {
-          sawSurgeTimer -= dt;
-          if (sawSurgeTimer <= 0 && sawSurgeActive <= 0) {
-            // Start a surge!
-            sawSurgeActive = cfg.surgeDuration;
-            sawSurgeTimer = cfg.surgeInterval;
-            shakeIntensity = Math.max(shakeIntensity, 8);
-          }
-          if (sawSurgeActive > 0) {
-            sawSurgeActive -= dt;
-            dangerSpeed *= cfg.surgeMultiplier;
-          }
-        }
-        dangerProgress = Math.min(100, dangerProgress + dangerSpeed * dt);
-
-        // ── 2. Rope tighten events (knockback) ──
-        if (cfg.tightenEnabled) {
-          nextTightenTime -= dt;
-          if (nextTightenTime <= 0 && escapeProgress > 5) {
-            // Knock escape back!
-            const knockback = Math.min(escapeProgress - 1, cfg.tightenAmount);
-            escapeProgress = Math.max(0, escapeProgress - knockback);
-            nextTightenTime = cfg.tightenInterval;
-            tightenFlash = 0.4;  // seconds of red flash
-            shakeIntensity = Math.max(shakeIntensity, 12);
-
-            // Spawn red warning particles on character
-            spawnExplosion(W / 2, H / 2, '#ef4444', 15);
-
-            // Floating warning
-            const warn = document.createElement('div');
-            warn.className = 'wiggle-text';
-            warn.textContent = '🪢 ROPE TIGHTENS!';
-            warn.style.left = (W / 2) + 'px';
-            warn.style.top = (H / 2 - 80) + 'px';
-            warn.style.color = '#ef4444';
-            warn.style.fontSize = '22px';
-            document.body.appendChild(warn);
-            setTimeout(() => warn.remove(), 700);
-          }
-        }
-        if (tightenFlash > 0) tightenFlash -= dt;
-
-        // ── 3. Check win/lose BEFORE applying decay ──
-        if (escapeProgress >= 100) {
-          gameWon();
-        } else if (dangerProgress >= 100) {
-          gameLost();
-        } else {
-          // ── 4. Escape decay (with progress‑dependent amplification) ──
-          let decay = cfg.escapeDecayPerSec;
-          if (cfg.progressDecayEnabled) {
-            // The closer you are to 100%, the faster it drains (up to +factor extra)
-            const progressRatio = escapeProgress / 100;
-            decay *= (1 + progressRatio * cfg.progressDecayFactor);
-          }
-          escapeProgress = Math.max(0, escapeProgress - decay * dt);
-        }
-
-        // wiggle visual decay
-        wiggleAmount *= Math.pow(0.01, dt);
-        characterShake.x *= Math.pow(0.001, dt);
-        characterShake.y *= Math.pow(0.001, dt);
-
-        updateUI();
-      }
-
-      if (state === STATE.WON) {
-        cutAnimProgress = Math.min(1, cutAnimProgress + 1.0 * dt);  // ~1s animation
-        wiggleAmount *= Math.pow(0.05, dt);
-        if (cutAnimProgress >= 1 && centerMessage.style.display === 'none') {
-          const diff = getDifficultyLabel();
-          const nextDiff = (() => { level++; const d = getDifficultyLabel(); level--; return d; })();
-          centerMessage.innerHTML = `
-            <h1 style="color: #4ade80;">🎉 You Escaped!</h1>
-            <p>Level ${level} <span style="color:${diff.color}">(${diff.text})</span> Complete! +${level * 100} bonus</p>
-            <p style="margin-top:8px; font-size:16px; color:${nextDiff.color};">Next: Level ${level + 1} — ${nextDiff.text}</p>
-            <div id="click-prompt">Click to Continue</div>
-          `;
-          centerMessage.style.display = 'block';
-        }
-      }
-
-      if (state === STATE.LOST) {
-        escapeAnimProgress = Math.min(1, escapeAnimProgress + 1.2 * dt);
-        if (escapeAnimProgress >= 1 && centerMessage.style.display === 'none') {
-          centerMessage.innerHTML = `
-            <h1 style="color: #ef4444;">💀 The Rope Cut!</h1>
-            <p>Final Score: ${score} | Reached Level ${level}</p>
-            <div id="click-prompt">Click to Try Again</div>
-          `;
-          centerMessage.style.display = 'block';
-        }
-      }
-
-      updateRopes();
-      updateParticles(dt);
-    }
-
-    function draw() {
-      drawBackground();
-
-      // Tighten flash overlay (red flash when rope tightens)
-      if (tightenFlash > 0) {
-        ctx.fillStyle = `rgba(239, 68, 68, ${tightenFlash * 0.5})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-      // Saw surge tint
-      if (sawSurgeActive > 0) {
-        ctx.fillStyle = `rgba(249, 115, 22, ${0.08 + Math.sin(Date.now() * 0.02) * 0.04})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      applyScreenShake();
-      drawRopes();
-      drawCharacter();
-      drawSawBlade();
-      drawParticles();
-      restoreScreenShake(0);
-    }
-
-    // ── Game loop with proper delta time ──
-    function gameLoop(timestamp) {
-      // dt in seconds, capped at 100ms to avoid spiral-of-death on tab-switch
-      const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.1);
-      lastFrameTime = timestamp;
-
-      update(dt);
-      draw();
-
-      // Decay screen shake here (outside draw's save/restore)
-      if (shakeIntensity > 0.1) {
-        shakeIntensity *= Math.pow(0.001, dt);
-      }
-
-      requestAnimationFrame(gameLoop);
-    }
-
-    initRopes();
-    lastFrameTime = performance.now();
-    requestAnimationFrame(gameLoop);
-  </script>
-</body>
-</html>
-    ctx.arc(5 + eyeShift, -31, 2 + wiggle * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // grimace mouth
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        const mouthWiggle = Math.sin(Date.now() * 0.02) * 2;
-        ctx.moveTo(-5, -22 + mouthWiggle);
-        ctx.lineTo(-2, -24 + mouthWiggle);
-        ctx.lineTo(2, -22 + mouthWiggle);
-        ctx.lineTo(5, -24 + mouthWiggle);
-        ctx.stroke();
-
-        // sweat when danger high
-        if (dangerProgress > 50) {
-          const sweatY = -38 + (Date.now() % 1000) / 1000 * 15;
-          ctx.fillStyle = `rgba(100, 200, 255, ${1 - (Date.now() % 1000) / 1000})`;
-          ctx.beginPath();
-          ctx.ellipse(14, sweatY, 2.5, 3.5, 0.3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      ctx.restore();
-    }
-
-    // ── Saw blade ──
-    function drawSawBlade() {
-      if (state !== STATE.PLAYING && state !== STATE.LOST) return;
-
-      const progress = dangerProgress / 100;
-      const sawX = W / 2 + 180 - progress * 130;
-      const sawY = H / 2 - 40;
-      const rotation = Date.now() * 0.008;
-      const sawRadius = 25;
-      const teeth = 10;
-
-      ctx.save();
-      ctx.translate(sawX, sawY);
-      ctx.rotate(rotation);
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.beginPath();
-      for (let i = 0; i < teeth; i++) {
-        const a1 = (i / teeth) * Math.PI * 2;
-        const a2 = ((i + 0.5) / teeth) * Math.PI * 2;
-        ctx.lineTo(Math.cos(a1) * sawRadius, Math.sin(a1) * sawRadius);
-        ctx.lineTo(Math.cos(a2) * (sawRadius - 8), Math.sin(a2) * (sawRadius - 8));
-      }
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = '#64748b';
-      ctx.beginPath();
-      ctx.arc(0, 0, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#475569';
-      ctx.beginPath();
-      ctx.arc(0, 0, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
-
-      // sparks when close
-      if (progress > 0.6) {
-        for (let i = 0; i < 2; i++) {
-          sparks.push({
-            x: sawX - 15,
-            y: sawY + (Math.random() - 0.5) * 20,
-            vx: -Math.random() * 4 - 1,
-            vy: (Math.random() - 0.5) * 4,
-            life: 1,
-            color: Math.random() > 0.5 ? '#fbbf24' : '#f97316',
-          });
-        }
-      }
-    }
-
-    // ── Particles ──
-    function spawnClickParticles(x, y) {
-      for (let i = 0; i < 6; i++) {
-        particles.push({
-          x, y,
-          vx: (Math.random() - 0.5) * 8,
-          vy: (Math.random() - 0.5) * 8 - 2,
-          life: 1,
-          size: Math.random() * 4 + 2,
-          color: ['#4ade80', '#22c55e', '#86efac', '#fbbf24'][Math.floor(Math.random() * 4)],
-        });
-      }
-    }
-
-    function spawnExplosion(x, y, color, count) {
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2;
-        const speed = Math.random() * 6 + 2;
-        particles.push({
-          x, y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life: 1,
-          size: Math.random() * 5 + 2,
-          color,
-        });
-      }
-    }
-
-    function updateParticles(dt) {
-      const decay = 1.5; // particles last ~0.67s
-      particles = particles.filter(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.1;
-        p.life -= decay * dt;
-        return p.life > 0;
-      });
-      sparks = sparks.filter(s => {
-        s.x += s.vx;
-        s.y += s.vy;
-        s.vy += 0.15;
-        s.life -= 3 * dt;
-        return s.life > 0;
-      });
-    }
-
-    function drawParticles() {
-      particles.forEach(p => {
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      sparks.forEach(s => {
-        ctx.globalAlpha = s.life;
-        ctx.fillStyle = s.color;
-        ctx.fillRect(s.x, s.y, 3, 2);
-      });
-      ctx.globalAlpha = 1;
     }
 
     // ── Background ──
     function drawBackground() {
-      const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, Math.max(W, H) * 0.7);
+      const grad = ctx.createRadialGradient(W / 2, H / 2, 80, W / 2, H / 2, Math.max(W, H) * 0.75);
 
-      if (state === STATE.LOST) {
-        grad.addColorStop(0, '#3d1111');
-        grad.addColorStop(1, '#1a0505');
-      } else if (state === STATE.WON) {
-        grad.addColorStop(0, '#1a3d1a');
-        grad.addColorStop(1, '#0a1a0a');
+      if (state === STATE.LOST_ANIM || state === STATE.LOST_MENU) {
+        grad.addColorStop(0, '#311010');
+        grad.addColorStop(1, '#0f0505');
+      } else if (state === STATE.WON_ANIM || state === STATE.WON_MENU) {
+        grad.addColorStop(0, '#0f331e');
+        grad.addColorStop(1, '#05140b');
       } else {
-        const dangerTint = dangerProgress / 100;
-        const r = Math.floor(26 + dangerTint * 40);
-        const g = Math.floor(26 - dangerTint * 15);
-        const b = Math.floor(46 - dangerTint * 30);
-        grad.addColorStop(0, `rgb(${r+15},${g+10},${b+20})`);
-        grad.addColorStop(1, `rgb(${r},${g},${b})`);
+        const stress = (currentHps >= getLevelConfig(level).requiredHps) ? 0.3 : 0.0;
+        grad.addColorStop(0, stress ? '#1e293b' : '#141d2e');
+        grad.addColorStop(1, '#090d16');
       }
+
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
 
-      // vignette
-      const vig = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.9);
-      vig.addColorStop(0, 'transparent');
-      vig.addColorStop(1, 'rgba(0,0,0,0.5)');
-      ctx.fillStyle = vig;
-      ctx.fillRect(0, 0, W, H);
-
-      // floor
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(0, H / 2 + 80);
-      ctx.lineTo(W, H / 2 + 80);
+      ctx.moveTo(0, H / 2 + 78);
+      ctx.lineTo(W, H / 2 + 78);
       ctx.stroke();
     }
 
-    // ── Screen shake ──
-    let shakeIntensity = 0;
-    function applyScreenShake() {
-      if (shakeIntensity > 0.1) {
-        ctx.save();
-        ctx.translate(
-          (Math.random() - 0.5) * shakeIntensity,
-          (Math.random() - 0.5) * shakeIntensity
-        );
-      }
-    }
-    function restoreScreenShake(dt) {
-      if (shakeIntensity > 0.1) {
-        ctx.restore();
-        // Decay shake using dt – half-life ~0.1s
-        shakeIntensity *= Math.pow(0.001, dt);
-      }
-    }
+    // ── Hits Per Second (HPS) Calculator ──
+    function updateHps(now) {
+      clickTimestamps = clickTimestamps.filter(t => now - t <= 1000);
 
-    // ── Click handling ──
-    function handleClick(x, y) {
-      if (state === STATE.MENU) {
-        startGame();
-        return;
+      const timeSinceLastClick = now - lastClickTime;
+      if (timeSinceLastClick > 800) {
+        currentHps = Math.max(0, currentHps - 15 * (timeSinceLastClick - 800) / 1000);
+      } else if (clickTimestamps.length >= 2) {
+        const intervals = [];
+        for (let i = 1; i < clickTimestamps.length; i++) {
+          intervals.push(clickTimestamps[i] - clickTimestamps[i - 1]);
+        }
+        const recentIntervals = intervals.slice(-4);
+        const avgInterval = recentIntervals.reduce((a, b) => a + b, 0) / recentIntervals.length;
+        const instantRate = avgInterval > 0 ? (1000 / avgInterval) : 0;
+        currentHps = Math.max(clickTimestamps.length, instantRate);
+      } else {
+        currentHps = clickTimestamps.length;
       }
 
-      if (state === STATE.WON || state === STATE.LOST) {
-        if (cutAnimProgress >= 1 || escapeAnimProgress >= 1) {
-          if (state === STATE.WON) {
-            level++;
-            startGame();
-          } else {
-            level = 1;
-            score = 0;
-            startGame();
-          }
-        }
-        return;
-      }
-
-      if (state === STATE.PLAYING) {
-        const now = Date.now();
-        const timeSince = now - lastClickTime;
-        const cfg = getLevelConfig();
-
-        // Combo – window shrinks at higher levels
-        if (timeSince < cfg.comboWindow) {
-          clickCombo = Math.min(clickCombo + 1, cfg.maxCombo);
-        } else {
-          clickCombo = Math.max(0, clickCombo - 2);
-        }
-        lastClickTime = now;
-
-        const comboMultiplier = 1 + clickCombo * 0.12;
-        const gain = cfg.escapePerClick * comboMultiplier;
-        escapeProgress = Math.min(100, escapeProgress + gain);
-
-        // Trigger win immediately on the click that fills the bar
-        if (escapeProgress >= 100 && state === STATE.PLAYING) {
-          gameWon();
-          updateUI();
-        }
-
-        wiggleAmount = Math.min(5, wiggleAmount + 0.8);
-        characterShake.x = (Math.random() - 0.5) * 12;
-        characterShake.y = (Math.random() - 0.5) * 8;
-        shakeIntensity = 4 + clickCombo;
-
-        spawnClickParticles(x, y);
-
-        // ripple
-        const ripple = document.createElement('div');
-        ripple.className = 'click-ripple';
-        ripple.style.left = x + 'px';
-        ripple.style.top = y + 'px';
-        if (clickCombo > 3) {
-          ripple.style.borderColor = `hsl(${60 + clickCombo * 15}, 100%, 60%)`;
-        }
-        document.body.appendChild(ripple);
-        setTimeout(() => ripple.remove(), 500);
-
-        // floating combo text
-        if (clickCombo >= 2) {
-          const texts = ['WIGGLE!', 'FASTER!', 'GO GO GO!', 'ESCAPE!', '🔥 COMBO!', '⚡ POWER!'];
-          const ft = document.createElement('div');
-          ft.className = 'wiggle-text';
-          ft.textContent = texts[Math.min(clickCombo - 2, texts.length - 1)];
-          ft.style.left = x + 'px';
-          ft.style.top = (y - 20) + 'px';
-          ft.style.fontSize = (14 + clickCombo) + 'px';
-          document.body.appendChild(ft);
-          setTimeout(() => ft.remove(), 700);
-        }
-
-        score += Math.floor(comboMultiplier * 10);
+      if (currentHps > bestHpsThisRound) {
+        bestHpsThisRound = currentHps;
       }
     }
 
-    // Both click and touch
-    document.addEventListener('click', e => handleClick(e.clientX, e.clientY));
-    document.addEventListener('touchstart', e => {
-      e.preventDefault();
-      for (const touch of e.touches) {
-        handleClick(touch.clientX, touch.clientY);
+    // ── Hit Handler (Active Gameplay Only) ──
+    function registerHit(x, y) {
+      initAudio();
+
+      if (state !== STATE.PLAYING) return;
+
+      const now = performance.now();
+      clickTimestamps.push(now);
+      lastClickTime = now;
+
+      updateHps(now);
+
+      const cfg = getLevelConfig(level);
+      const meetsThreshold = currentHps >= cfg.requiredHps;
+
+      bladeAnim = 1.0;
+      bladeCoord.x = W / 2 + (Math.random() - 0.5) * 40;
+      bladeCoord.y = H / 2 + 10 + (Math.random() - 0.5) * 40;
+      bladeCoord.angle = (Math.random() - 0.5) * 1.5;
+
+      const ripple = document.createElement('div');
+      ripple.className = 'click-ripple';
+      ripple.style.left = x + 'px';
+      ripple.style.top = y + 'px';
+      ripple.style.borderColor = meetsThreshold ? '#f97316' : 'rgba(255,255,255,0.4)';
+      document.body.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 450);
+
+      if (meetsThreshold) {
+        combo++;
+        // Strict hits requirement: each hit adds exactly 1 hit toward goal
+        hitsLanded++;
+        cutProgress = Math.min(100, (hitsLanded / cfg.hitsNeeded) * 100);
+
+        playSound('slice');
+        spawnFiberParticles(bladeCoord.x, bladeCoord.y, 8);
+        shakeIntensity = Math.min(18, 5 + combo * 0.4);
+        wiggleAmount = Math.min(5, wiggleAmount + 1.0);
+        characterShake.x = (Math.random() - 0.5) * 14;
+        characterShake.y = (Math.random() - 0.5) * 10;
+        score += 20;
+
+        // Snap milestones
+        if (cutProgress >= 25 && lastSnapMilestone < 1) {
+          lastSnapMilestone = 1;
+          snapStrand();
+        } else if (cutProgress >= 50 && lastSnapMilestone < 2) {
+          lastSnapMilestone = 2;
+          snapStrand();
+        } else if (cutProgress >= 75 && lastSnapMilestone < 3) {
+          lastSnapMilestone = 3;
+          snapStrand();
+        }
+
+        if (combo % 5 === 0) {
+          const texts = ['🔥 SLICE!', '⚡ CUTTING!', 'GREAT SPEED!', 'POWER HIT!', '🔥 MAX SPEED!'];
+          const txt = texts[Math.min(Math.floor(combo / 5), texts.length - 1)];
+          spawnFloatingText(txt, x, y - 20, '#f97316');
+        }
+
+        if (hitsLanded >= cfg.hitsNeeded) {
+          triggerWin();
+        }
+      } else {
+        combo = 0;
+        playSound('clink');
+        shakeIntensity = 2;
+        wiggleAmount = Math.min(3, wiggleAmount + 0.4);
+
+        if (clickTimestamps.length % 4 === 1) {
+          spawnFloatingText(`⚠️ NEED ${cfg.requiredHps} HPS!`, x, y - 20, '#ef4444');
+        }
       }
-    }, { passive: false });
 
-    // ── Start / end ──
-    function startGame() {
-      state = STATE.PLAYING;
-      escapeProgress = 0;
-      dangerProgress = 0;
-      wiggleAmount = 0;
-      clickCombo = 0;
-      cutAnimProgress = 0;
-      escapeAnimProgress = 0;
-      characterShake = { x: 0, y: 0 };
-      particles = [];
-      sparks = [];
-      gameElapsed = 0;
-      tightenFlash = 0;
-      sawSurgeActive = 0;
-
-      // Stagger first events so they don't hit immediately
-      const cfg = getLevelConfig();
-      nextTightenTime = cfg.tightenEnabled ? cfg.tightenInterval * 0.7 : 9999;
-      sawSurgeTimer = cfg.surgeEnabled ? cfg.surgeInterval * 0.8 : 9999;
-
-      lastFrameTime = performance.now();
-      initRopes();
-      centerMessage.style.display = 'none';
-
-      const diff = getDifficultyLabel();
-      levelDisplay.innerHTML = `Level ${level} <span style="color:${diff.color}; font-size:14px; margin-left:8px;">${diff.text}</span>`;
       updateUI();
     }
 
-    function gameWon() {
-      state = STATE.WON;
-      score += level * 100;
-      spawnExplosion(W / 2, H / 2, '#4ade80', 40);
-      spawnExplosion(W / 2, H / 2, '#fbbf24', 30);
-      shakeIntensity = 20;
-    }
+    function snapStrand() {
+      playSound('snap');
+      shakeIntensity = 14;
+      spawnFiberParticles(W / 2, H / 2 + 20, 20);
 
-    function gameLost() {
-      state = STATE.LOST;
-      spawnExplosion(W / 2, H / 2, '#ef4444', 50);
-      shakeIntensity = 30;
-    }
-
-    function updateUI() {
-      escapeFill.style.width = escapeProgress + '%';
-      dangerFill.style.width = dangerProgress + '%';
-      scoreDisplay.textContent = `Score: ${score}`;
-
-      // Pulse danger bar when high or during saw surge
-      if (sawSurgeActive > 0) {
-        dangerFill.style.boxShadow = `0 0 18px rgba(249, 115, 22, 0.9)`;
-        document.getElementById('danger-label').textContent = '🔪 ⚡ SAW SURGE!';
-      } else if (dangerProgress > 70) {
-        dangerFill.style.boxShadow = `0 0 ${10 + Math.sin(Date.now() * 0.01) * 5}px rgba(239, 68, 68, 0.6)`;
-        document.getElementById('danger-label').textContent = '🔪 Rope Cutting';
-      } else {
-        dangerFill.style.boxShadow = 'none';
-        document.getElementById('danger-label').textContent = '🔪 Rope Cutting';
+      const available = ropeSegments.filter(s => !s.snapped);
+      if (available.length > 0) {
+        const seg = available[Math.floor(Math.random() * available.length)];
+        seg.snapped = true;
       }
     }
 
-    // ── Main update (delta‑time based) ──
+    function spawnFloatingText(text, x, y, color) {
+      const ft = document.createElement('div');
+      ft.className = 'wiggle-text';
+      ft.textContent = text;
+      ft.style.left = x + 'px';
+      ft.style.top = y + 'px';
+      ft.style.color = color;
+      document.body.appendChild(ft);
+      setTimeout(() => ft.remove(), 650);
+    }
+
+    // ── Input Listeners ──
+    window.addEventListener('mousedown', e => {
+      if (e.target === soundToggle) return;
+      if (centerMessage.style.display !== 'none' && centerMessage.contains(e.target)) return;
+      registerHit(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('touchstart', e => {
+      if (e.target === soundToggle) return;
+      if (centerMessage.style.display !== 'none' && centerMessage.contains(e.target)) return;
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        registerHit(t.clientX, t.clientY);
+      }
+    }, { passive: false });
+
+    // Initial Start Button
+    const initialStartBtn = document.getElementById('modal-action-btn');
+    if (initialStartBtn) {
+      initialStartBtn.onclick = (e) => {
+        e.stopPropagation();
+        startRound();
+      };
+    }
+
+    // ── Round Management ──
+    function startRound() {
+      clearPendingModal();
+      centerMessage.style.display = 'none';
+      centerMessage.innerHTML = ''; // Ensure modal content is cleared so it cannot re-show!
+
+      const cfg = getLevelConfig(level);
+      state = STATE.PLAYING;
+      hitsLanded = 0;
+      cutProgress = 0;
+      decayAccumulator = 0;
+      timeRemaining = cfg.timeLimit;
+      lastSnapMilestone = 0;
+      clickTimestamps = [];
+      currentHps = 0;
+      bestHpsThisRound = 0;
+      combo = 0;
+      lastClickTime = performance.now();
+      wiggleAmount = 0;
+      characterShake = { x: 0, y: 0 };
+      particles = [];
+      winAnimProgress = 0;
+      lastFrameTime = performance.now();
+
+      initRopes();
+
+      // Update HUD
+      levelNum.textContent = `Level ${level}`;
+      tierBadge.textContent = cfg.tier;
+      tierBadge.style.color = cfg.tierColor;
+      tierBadge.style.background = `${cfg.tierColor}25`;
+      hpsRatio.textContent = `0.0 / ${cfg.requiredHps} HPS`;
+
+      const targetPercent = Math.min(95, Math.max(10, (cfg.requiredHps / 14) * 100));
+      hpsTargetLine.style.left = `${targetPercent}%`;
+
+      instructionsBottom.textContent = `Level ${level} (${cfg.tier}): Land ${cfg.hitsNeeded} Hits maintaining at least ${cfg.requiredHps} Hits/Sec!`;
+
+      updateUI();
+    }
+
+    function triggerWin() {
+      clearPendingModal();
+      state = STATE.WON_ANIM; // Input locked during victory celebration
+      score += level * 200;
+      playSound('win');
+      shakeIntensity = 25;
+      spawnConfetti(W / 2, H / 2, 70);
+
+      ropeSegments.forEach(s => {
+        if (!s.snapped) s.snapped = true;
+      });
+
+      modalTimeoutId = setTimeout(() => {
+        showWinModal();
+      }, 700);
+    }
+
+    function showWinModal() {
+      clearPendingModal();
+      state = STATE.WON_MENU;
+      const nextCfg = getLevelConfig(level + 1);
+
+      centerMessage.innerHTML = `
+        <h1 style="color: #4ade80;">🎉 ROPE CUT!</h1>
+        <p style="font-size: 18px; font-weight: 700; color: #fff;">You escaped Level ${level}!</p>
+        <div class="level-stat-row">
+          <div class="stat-box">
+            <div class="stat-val" style="color: #4ade80;">${bestHpsThisRound.toFixed(1)}</div>
+            <div class="stat-lbl">Best Hits/Sec</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color: #38bdf8;">+${level * 200}</div>
+            <div class="stat-lbl">Score Bonus</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color: #fbbf24;">${score}</div>
+            <div class="stat-lbl">Total Score</div>
+          </div>
+        </div>
+        <p style="font-size: 14px; color: #94a3b8; margin: 12px 0;">
+          Next: <strong style="color: #fff;">Level ${level + 1}</strong> (${nextCfg.tier})<br>
+          Requires <strong style="color: #fbbf24;">${nextCfg.hitsNeeded} Hits</strong> at <strong style="color: #38bdf8;">${nextCfg.requiredHps} Hits/Sec</strong>!
+        </p>
+        <button id="modal-action-btn" class="modal-btn">Continue to Level ${level + 1}</button>
+      `;
+      centerMessage.style.display = 'block';
+
+      document.getElementById('modal-action-btn').onclick = (e) => {
+        e.stopPropagation();
+        level++;
+        startRound();
+      };
+    }
+
+    function triggerLoss() {
+      clearPendingModal();
+      state = STATE.LOST_ANIM; // Input locked
+      playSound('lose');
+      shakeIntensity = 20;
+
+      modalTimeoutId = setTimeout(() => {
+        showLossModal();
+      }, 500);
+    }
+
+    function showLossModal() {
+      clearPendingModal();
+      state = STATE.LOST_MENU;
+      const cfg = getLevelConfig(level);
+
+      centerMessage.innerHTML = `
+        <h1 style="color: #ef4444;">⏰ TIME'S UP!</h1>
+        <p style="font-size: 17px; font-weight: 700; color: #fff;">The rope didn't cut in time!</p>
+        <div class="level-stat-row">
+          <div class="stat-box">
+            <div class="stat-val" style="color: #ef4444;">${bestHpsThisRound.toFixed(1)}</div>
+            <div class="stat-lbl">Best HPS</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color: #fbbf24;">${hitsLanded} / ${cfg.hitsNeeded}</div>
+            <div class="stat-lbl">Hits Landed</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color: #f97316;">${Math.floor(cutProgress)}%</div>
+            <div class="stat-lbl">Cut Progress</div>
+          </div>
+        </div>
+        <p style="font-size: 14px; color: #94a3b8; margin: 12px 0;">
+          Level ${level} requires <strong>${cfg.hitsNeeded} Hits</strong> at <strong>${cfg.requiredHps} Hits/Sec</strong>.<br>
+          Hit faster to slice through before the timer expires!
+        </p>
+        <button id="modal-action-btn" class="modal-btn">Try Level ${level} Again</button>
+      `;
+      centerMessage.style.display = 'block';
+
+      document.getElementById('modal-action-btn').onclick = (e) => {
+        e.stopPropagation();
+        startRound();
+      };
+    }
+
+    // ── Update UI ──
+    function updateUI() {
+      const cfg = getLevelConfig(level);
+
+      // Cut progress bar with exact hits count
+      cutFill.style.width = `${cutProgress}%`;
+      cutPercent.textContent = `${hitsLanded} / ${cfg.hitsNeeded} Hits (${Math.floor(cutProgress)}%)`;
+
+      // HPS Gauge
+      const maxDisplayHps = Math.max(cfg.requiredHps * 1.35, 12);
+      const hpsPercent = Math.min(100, (currentHps / maxDisplayHps) * 100);
+      hpsFill.style.width = `${hpsPercent}%`;
+      hpsRatio.textContent = `${currentHps.toFixed(1)} / ${cfg.requiredHps} HPS`;
+
+      if (currentHps >= cfg.requiredHps) {
+        hpsFill.style.background = 'linear-gradient(90deg, #16a34a, #22c55e, #4ade80)';
+        hpsFill.style.boxShadow = '0 0 16px rgba(74, 222, 128, 0.8)';
+        document.getElementById('hps-label').textContent = '⚡ CUTTING ROPE!';
+        document.getElementById('hps-label').style.color = '#4ade80';
+      } else {
+        hpsFill.style.background = 'linear-gradient(90deg, #0284c7, #38bdf8)';
+        hpsFill.style.boxShadow = '0 0 12px rgba(56, 189, 248, 0.4)';
+        document.getElementById('hps-label').textContent = '⚡ Hit Speed';
+        document.getElementById('hps-label').style.color = '#38bdf8';
+      }
+
+      // Timer
+      timerVal.textContent = `${Math.max(0, timeRemaining).toFixed(1)}s`;
+      if (timeRemaining <= 5.0) {
+        timerVal.style.color = '#ef4444';
+        timerVal.style.animation = 'pulse 0.5s infinite';
+      } else {
+        timerVal.style.color = '#fbbf24';
+        timerVal.style.animation = 'none';
+      }
+
+      // Score
+      scoreBadge.textContent = `Score: ${score}`;
+    }
+
+    // ── Main Update Loop ──
     function update(dt) {
+      const now = performance.now();
+
       if (state === STATE.PLAYING) {
-        const cfg = getLevelConfig();
-        gameElapsed += dt;
+        const cfg = getLevelConfig(level);
 
-        // ── 1. Danger increases (with saw surge) ──
-        let dangerSpeed = cfg.dangerPerSec;
-        if (cfg.surgeEnabled) {
-          sawSurgeTimer -= dt;
-          if (sawSurgeTimer <= 0 && sawSurgeActive <= 0) {
-            // Start a surge!
-            sawSurgeActive = cfg.surgeDuration;
-            sawSurgeTimer = cfg.surgeInterval;
-            shakeIntensity = Math.max(shakeIntensity, 8);
+        updateHps(now);
+
+        timeRemaining -= dt;
+
+        // Tension recovery: decays hits if player drops below required speed
+        if (currentHps < cfg.requiredHps && hitsLanded > 0) {
+          decayAccumulator += cfg.hitDecayRate * dt;
+          if (decayAccumulator >= 1.0) {
+            const hitsLost = Math.floor(decayAccumulator);
+            hitsLanded = Math.max(0, hitsLanded - hitsLost);
+            decayAccumulator -= hitsLost;
+            cutProgress = Math.min(100, (hitsLanded / cfg.hitsNeeded) * 100);
           }
-          if (sawSurgeActive > 0) {
-            sawSurgeActive -= dt;
-            dangerSpeed *= cfg.surgeMultiplier;
-          }
-        }
-        dangerProgress = Math.min(100, dangerProgress + dangerSpeed * dt);
-
-        // ── 2. Rope tighten events (knockback) ──
-        if (cfg.tightenEnabled) {
-          nextTightenTime -= dt;
-          if (nextTightenTime <= 0 && escapeProgress > 5) {
-            // Knock escape back!
-            const knockback = Math.min(escapeProgress - 1, cfg.tightenAmount);
-            escapeProgress = Math.max(0, escapeProgress - knockback);
-            nextTightenTime = cfg.tightenInterval;
-            tightenFlash = 0.4;  // seconds of red flash
-            shakeIntensity = Math.max(shakeIntensity, 12);
-
-            // Spawn red warning particles on character
-            spawnExplosion(W / 2, H / 2, '#ef4444', 15);
-
-            // Floating warning
-            const warn = document.createElement('div');
-            warn.className = 'wiggle-text';
-            warn.textContent = '🪢 ROPE TIGHTENS!';
-            warn.style.left = (W / 2) + 'px';
-            warn.style.top = (H / 2 - 80) + 'px';
-            warn.style.color = '#ef4444';
-            warn.style.fontSize = '22px';
-            document.body.appendChild(warn);
-            setTimeout(() => warn.remove(), 700);
-          }
-        }
-        if (tightenFlash > 0) tightenFlash -= dt;
-
-        // ── 3. Check win/lose BEFORE applying decay ──
-        if (escapeProgress >= 100) {
-          gameWon();
-        } else if (dangerProgress >= 100) {
-          gameLost();
         } else {
-          // ── 4. Escape decay (with progress‑dependent amplification) ──
-          let decay = cfg.escapeDecayPerSec;
-          if (cfg.progressDecayEnabled) {
-            // The closer you are to 100%, the faster it drains (up to +factor extra)
-            const progressRatio = escapeProgress / 100;
-            decay *= (1 + progressRatio * cfg.progressDecayFactor);
-          }
-          escapeProgress = Math.max(0, escapeProgress - decay * dt);
+          decayAccumulator = 0;
         }
 
-        // wiggle visual decay
         wiggleAmount *= Math.pow(0.01, dt);
         characterShake.x *= Math.pow(0.001, dt);
         characterShake.y *= Math.pow(0.001, dt);
 
+        if (timeRemaining <= 0) {
+          timeRemaining = 0;
+          triggerLoss();
+        }
+
         updateUI();
       }
 
-      if (state === STATE.WON) {
-        cutAnimProgress = Math.min(1, cutAnimProgress + 1.0 * dt);  // ~1s animation
-        wiggleAmount *= Math.pow(0.05, dt);
-        if (cutAnimProgress >= 1 && centerMessage.style.display === 'none') {
-          const diff = getDifficultyLabel();
-          const nextDiff = (() => { level++; const d = getDifficultyLabel(); level--; return d; })();
-          centerMessage.innerHTML = `
-            <h1 style="color: #4ade80;">🎉 You Escaped!</h1>
-            <p>Level ${level} <span style="color:${diff.color}">(${diff.text})</span> Complete! +${level * 100} bonus</p>
-            <p style="margin-top:8px; font-size:16px; color:${nextDiff.color};">Next: Level ${level + 1} — ${nextDiff.text}</p>
-            <div id="click-prompt">Click to Continue</div>
-          `;
-          centerMessage.style.display = 'block';
-        }
+      if (state === STATE.WON_ANIM) {
+        winAnimProgress = Math.min(1, winAnimProgress + dt * 1.5);
       }
 
-      if (state === STATE.LOST) {
-        escapeAnimProgress = Math.min(1, escapeAnimProgress + 1.2 * dt);
-        if (escapeAnimProgress >= 1 && centerMessage.style.display === 'none') {
-          centerMessage.innerHTML = `
-            <h1 style="color: #ef4444;">💀 The Rope Cut!</h1>
-            <p>Final Score: ${score} | Reached Level ${level}</p>
-            <div id="click-prompt">Click to Try Again</div>
-          `;
-          centerMessage.style.display = 'block';
-        }
-      }
-
-      updateRopes();
+      updateRopes(dt);
       updateParticles(dt);
     }
 
+    // ── Draw Loop ──
     function draw() {
       drawBackground();
-
-      // Tighten flash overlay (red flash when rope tightens)
-      if (tightenFlash > 0) {
-        ctx.fillStyle = `rgba(239, 68, 68, ${tightenFlash * 0.5})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-      // Saw surge tint
-      if (sawSurgeActive > 0) {
-        ctx.fillStyle = `rgba(249, 115, 22, ${0.08 + Math.sin(Date.now() * 0.02) * 0.04})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-
       applyScreenShake();
       drawRopes();
       drawCharacter();
-      drawSawBlade();
+      drawBladeStrike();
       drawParticles();
-      restoreScreenShake(0);
+      restoreScreenShake(lastFrameTime ? (performance.now() - lastFrameTime) / 1000 : 0.016);
     }
 
-    // ── Game loop with proper delta time ──
+    // ── Game Loop ──
     function gameLoop(timestamp) {
-      // dt in seconds, capped at 100ms to avoid spiral-of-death on tab-switch
       const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.1);
       lastFrameTime = timestamp;
 
       update(dt);
       draw();
-
-      // Decay screen shake here (outside draw's save/restore)
-      if (shakeIntensity > 0.1) {
-        shakeIntensity *= Math.pow(0.001, dt);
-      }
-
-      requestAnimationFrame(gameLoop);
-    }
-
-    initRopes();
-    lastFrameTime = performance.now();
-    requestAnimationFrame(gameLoop);
-  </script>
-</body>
-</html>
-    ctx.arc(5 + eyeShift, -31, 2 + wiggle * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // grimace mouth
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        const mouthWiggle = Math.sin(Date.now() * 0.02) * 2;
-        ctx.moveTo(-5, -22 + mouthWiggle);
-        ctx.lineTo(-2, -24 + mouthWiggle);
-        ctx.lineTo(2, -22 + mouthWiggle);
-        ctx.lineTo(5, -24 + mouthWiggle);
-        ctx.stroke();
-
-        // sweat when danger high
-        if (dangerProgress > 50) {
-          const sweatY = -38 + (Date.now() % 1000) / 1000 * 15;
-          ctx.fillStyle = `rgba(100, 200, 255, ${1 - (Date.now() % 1000) / 1000})`;
-          ctx.beginPath();
-          ctx.ellipse(14, sweatY, 2.5, 3.5, 0.3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      ctx.restore();
-    }
-
-    // ── Saw blade ──
-    function drawSawBlade() {
-      if (state !== STATE.PLAYING && state !== STATE.LOST) return;
-
-      const progress = dangerProgress / 100;
-      const sawX = W / 2 + 180 - progress * 130;
-      const sawY = H / 2 - 40;
-      const rotation = Date.now() * 0.008;
-      const sawRadius = 25;
-      const teeth = 10;
-
-      ctx.save();
-      ctx.translate(sawX, sawY);
-      ctx.rotate(rotation);
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.beginPath();
-      for (let i = 0; i < teeth; i++) {
-        const a1 = (i / teeth) * Math.PI * 2;
-        const a2 = ((i + 0.5) / teeth) * Math.PI * 2;
-        ctx.lineTo(Math.cos(a1) * sawRadius, Math.sin(a1) * sawRadius);
-        ctx.lineTo(Math.cos(a2) * (sawRadius - 8), Math.sin(a2) * (sawRadius - 8));
-      }
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = '#64748b';
-      ctx.beginPath();
-      ctx.arc(0, 0, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#475569';
-      ctx.beginPath();
-      ctx.arc(0, 0, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
-
-      // sparks when close
-      if (progress > 0.6) {
-        for (let i = 0; i < 2; i++) {
-          sparks.push({
-            x: sawX - 15,
-            y: sawY + (Math.random() - 0.5) * 20,
-            vx: -Math.random() * 4 - 1,
-            vy: (Math.random() - 0.5) * 4,
-            life: 1,
-            color: Math.random() > 0.5 ? '#fbbf24' : '#f97316',
-          });
-        }
-      }
-    }
-
-    // ── Particles ──
-    function spawnClickParticles(x, y) {
-      for (let i = 0; i < 6; i++) {
-        particles.push({
-          x, y,
-          vx: (Math.random() - 0.5) * 8,
-          vy: (Math.random() - 0.5) * 8 - 2,
-          life: 1,
-          size: Math.random() * 4 + 2,
-          color: ['#4ade80', '#22c55e', '#86efac', '#fbbf24'][Math.floor(Math.random() * 4)],
-        });
-      }
-    }
-
-    function spawnExplosion(x, y, color, count) {
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2;
-        const speed = Math.random() * 6 + 2;
-        particles.push({
-          x, y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life: 1,
-          size: Math.random() * 5 + 2,
-          color,
-        });
-      }
-    }
-
-    function updateParticles(dt) {
-      const decay = 1.5; // particles last ~0.67s
-      particles = particles.filter(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.1;
-        p.life -= decay * dt;
-        return p.life > 0;
-      });
-      sparks = sparks.filter(s => {
-        s.x += s.vx;
-        s.y += s.vy;
-        s.vy += 0.15;
-        s.life -= 3 * dt;
-        return s.life > 0;
-      });
-    }
-
-    function drawParticles() {
-      particles.forEach(p => {
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      sparks.forEach(s => {
-        ctx.globalAlpha = s.life;
-        ctx.fillStyle = s.color;
-        ctx.fillRect(s.x, s.y, 3, 2);
-      });
-      ctx.globalAlpha = 1;
-    }
-
-    // ── Background ──
-    function drawBackground() {
-      const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, Math.max(W, H) * 0.7);
-
-      if (state === STATE.LOST) {
-        grad.addColorStop(0, '#3d1111');
-        grad.addColorStop(1, '#1a0505');
-      } else if (state === STATE.WON) {
-        grad.addColorStop(0, '#1a3d1a');
-        grad.addColorStop(1, '#0a1a0a');
-      } else {
-        const dangerTint = dangerProgress / 100;
-        const r = Math.floor(26 + dangerTint * 40);
-        const g = Math.floor(26 - dangerTint * 15);
-        const b = Math.floor(46 - dangerTint * 30);
-        grad.addColorStop(0, `rgb(${r+15},${g+10},${b+20})`);
-        grad.addColorStop(1, `rgb(${r},${g},${b})`);
-      }
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
-
-      // vignette
-      const vig = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.9);
-      vig.addColorStop(0, 'transparent');
-      vig.addColorStop(1, 'rgba(0,0,0,0.5)');
-      ctx.fillStyle = vig;
-      ctx.fillRect(0, 0, W, H);
-
-      // floor
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, H / 2 + 80);
-      ctx.lineTo(W, H / 2 + 80);
-      ctx.stroke();
-    }
-
-    // ── Screen shake ──
-    let shakeIntensity = 0;
-    function applyScreenShake() {
-      if (shakeIntensity > 0.1) {
-        ctx.save();
-        ctx.translate(
-          (Math.random() - 0.5) * shakeIntensity,
-          (Math.random() - 0.5) * shakeIntensity
-        );
-      }
-    }
-    function restoreScreenShake(dt) {
-      if (shakeIntensity > 0.1) {
-        ctx.restore();
-        // Decay shake using dt – half-life ~0.1s
-        shakeIntensity *= Math.pow(0.001, dt);
-      }
-    }
-
-    // ── Click handling ──
-    function handleClick(x, y) {
-      if (state === STATE.MENU) {
-        startGame();
-        return;
-      }
-
-      if (state === STATE.WON || state === STATE.LOST) {
-        if (cutAnimProgress >= 1 || escapeAnimProgress >= 1) {
-          if (state === STATE.WON) {
-            level++;
-            startGame();
-          } else {
-            level = 1;
-            score = 0;
-            startGame();
-          }
-        }
-        return;
-      }
-
-      if (state === STATE.PLAYING) {
-        const now = Date.now();
-        const timeSince = now - lastClickTime;
-        const cfg = getLevelConfig();
-
-        // Combo – window shrinks at higher levels
-        if (timeSince < cfg.comboWindow) {
-          clickCombo = Math.min(clickCombo + 1, cfg.maxCombo);
-        } else {
-          clickCombo = Math.max(0, clickCombo - 2);
-        }
-        lastClickTime = now;
-
-        const comboMultiplier = 1 + clickCombo * 0.12;
-        const gain = cfg.escapePerClick * comboMultiplier;
-        escapeProgress = Math.min(100, escapeProgress + gain);
-
-        // Trigger win immediately on the click that fills the bar
-        if (escapeProgress >= 100 && state === STATE.PLAYING) {
-          gameWon();
-          updateUI();
-        }
-
-        wiggleAmount = Math.min(5, wiggleAmount + 0.8);
-        characterShake.x = (Math.random() - 0.5) * 12;
-        characterShake.y = (Math.random() - 0.5) * 8;
-        shakeIntensity = 4 + clickCombo;
-
-        spawnClickParticles(x, y);
-
-        // ripple
-        const ripple = document.createElement('div');
-        ripple.className = 'click-ripple';
-        ripple.style.left = x + 'px';
-        ripple.style.top = y + 'px';
-        if (clickCombo > 3) {
-          ripple.style.borderColor = `hsl(${60 + clickCombo * 15}, 100%, 60%)`;
-        }
-        document.body.appendChild(ripple);
-        setTimeout(() => ripple.remove(), 500);
-
-        // floating combo text
-        if (clickCombo >= 2) {
-          const texts = ['WIGGLE!', 'FASTER!', 'GO GO GO!', 'ESCAPE!', '🔥 COMBO!', '⚡ POWER!'];
-          const ft = document.createElement('div');
-          ft.className = 'wiggle-text';
-          ft.textContent = texts[Math.min(clickCombo - 2, texts.length - 1)];
-          ft.style.left = x + 'px';
-          ft.style.top = (y - 20) + 'px';
-          ft.style.fontSize = (14 + clickCombo) + 'px';
-          document.body.appendChild(ft);
-          setTimeout(() => ft.remove(), 700);
-        }
-
-        score += Math.floor(comboMultiplier * 10);
-      }
-    }
-
-    // Both click and touch
-    document.addEventListener('click', e => handleClick(e.clientX, e.clientY));
-    document.addEventListener('touchstart', e => {
-      e.preventDefault();
-      for (const touch of e.touches) {
-        handleClick(touch.clientX, touch.clientY);
-      }
-    }, { passive: false });
-
-    // ── Start / end ──
-    function startGame() {
-      state = STATE.PLAYING;
-      escapeProgress = 0;
-      dangerProgress = 0;
-      wiggleAmount = 0;
-      clickCombo = 0;
-      cutAnimProgress = 0;
-      escapeAnimProgress = 0;
-      characterShake = { x: 0, y: 0 };
-      particles = [];
-      sparks = [];
-      gameElapsed = 0;
-      tightenFlash = 0;
-      sawSurgeActive = 0;
-
-      // Stagger first events so they don't hit immediately
-      const cfg = getLevelConfig();
-      nextTightenTime = cfg.tightenEnabled ? cfg.tightenInterval * 0.7 : 9999;
-      sawSurgeTimer = cfg.surgeEnabled ? cfg.surgeInterval * 0.8 : 9999;
-
-      lastFrameTime = performance.now();
-      initRopes();
-      centerMessage.style.display = 'none';
-
-      const diff = getDifficultyLabel();
-      levelDisplay.innerHTML = `Level ${level} <span style="color:${diff.color}; font-size:14px; margin-left:8px;">${diff.text}</span>`;
-      updateUI();
-    }
-
-    function gameWon() {
-      state = STATE.WON;
-      score += level * 100;
-      spawnExplosion(W / 2, H / 2, '#4ade80', 40);
-      spawnExplosion(W / 2, H / 2, '#fbbf24', 30);
-      shakeIntensity = 20;
-    }
-
-    function gameLost() {
-      state = STATE.LOST;
-      spawnExplosion(W / 2, H / 2, '#ef4444', 50);
-      shakeIntensity = 30;
-    }
-
-    function updateUI() {
-      escapeFill.style.width = escapeProgress + '%';
-      dangerFill.style.width = dangerProgress + '%';
-      scoreDisplay.textContent = `Score: ${score}`;
-
-      // Pulse danger bar when high or during saw surge
-      if (sawSurgeActive > 0) {
-        dangerFill.style.boxShadow = `0 0 18px rgba(249, 115, 22, 0.9)`;
-        document.getElementById('danger-label').textContent = '🔪 ⚡ SAW SURGE!';
-      } else if (dangerProgress > 70) {
-        dangerFill.style.boxShadow = `0 0 ${10 + Math.sin(Date.now() * 0.01) * 5}px rgba(239, 68, 68, 0.6)`;
-        document.getElementById('danger-label').textContent = '🔪 Rope Cutting';
-      } else {
-        dangerFill.style.boxShadow = 'none';
-        document.getElementById('danger-label').textContent = '🔪 Rope Cutting';
-      }
-    }
-
-    // ── Main update (delta‑time based) ──
-    function update(dt) {
-      if (state === STATE.PLAYING) {
-        const cfg = getLevelConfig();
-        gameElapsed += dt;
-
-        // ── 1. Danger increases (with saw surge) ──
-        let dangerSpeed = cfg.dangerPerSec;
-        if (cfg.surgeEnabled) {
-          sawSurgeTimer -= dt;
-          if (sawSurgeTimer <= 0 && sawSurgeActive <= 0) {
-            // Start a surge!
-            sawSurgeActive = cfg.surgeDuration;
-            sawSurgeTimer = cfg.surgeInterval;
-            shakeIntensity = Math.max(shakeIntensity, 8);
-          }
-          if (sawSurgeActive > 0) {
-            sawSurgeActive -= dt;
-            dangerSpeed *= cfg.surgeMultiplier;
-          }
-        }
-        dangerProgress = Math.min(100, dangerProgress + dangerSpeed * dt);
-
-        // ── 2. Rope tighten events (knockback) ──
-        if (cfg.tightenEnabled) {
-          nextTightenTime -= dt;
-          if (nextTightenTime <= 0 && escapeProgress > 5) {
-            // Knock escape back!
-            const knockback = Math.min(escapeProgress - 1, cfg.tightenAmount);
-            escapeProgress = Math.max(0, escapeProgress - knockback);
-            nextTightenTime = cfg.tightenInterval;
-            tightenFlash = 0.4;  // seconds of red flash
-            shakeIntensity = Math.max(shakeIntensity, 12);
-
-            // Spawn red warning particles on character
-            spawnExplosion(W / 2, H / 2, '#ef4444', 15);
-
-            // Floating warning
-            const warn = document.createElement('div');
-            warn.className = 'wiggle-text';
-            warn.textContent = '🪢 ROPE TIGHTENS!';
-            warn.style.left = (W / 2) + 'px';
-            warn.style.top = (H / 2 - 80) + 'px';
-            warn.style.color = '#ef4444';
-            warn.style.fontSize = '22px';
-            document.body.appendChild(warn);
-            setTimeout(() => warn.remove(), 700);
-          }
-        }
-        if (tightenFlash > 0) tightenFlash -= dt;
-
-        // ── 3. Check win/lose BEFORE applying decay ──
-        if (escapeProgress >= 100) {
-          gameWon();
-        } else if (dangerProgress >= 100) {
-          gameLost();
-        } else {
-          // ── 4. Escape decay (with progress‑dependent amplification) ──
-          let decay = cfg.escapeDecayPerSec;
-          if (cfg.progressDecayEnabled) {
-            // The closer you are to 100%, the faster it drains (up to +factor extra)
-            const progressRatio = escapeProgress / 100;
-            decay *= (1 + progressRatio * cfg.progressDecayFactor);
-          }
-          escapeProgress = Math.max(0, escapeProgress - decay * dt);
-        }
-
-        // wiggle visual decay
-        wiggleAmount *= Math.pow(0.01, dt);
-        characterShake.x *= Math.pow(0.001, dt);
-        characterShake.y *= Math.pow(0.001, dt);
-
-        updateUI();
-      }
-
-      if (state === STATE.WON) {
-        cutAnimProgress = Math.min(1, cutAnimProgress + 1.0 * dt);  // ~1s animation
-        wiggleAmount *= Math.pow(0.05, dt);
-        if (cutAnimProgress >= 1 && centerMessage.style.display === 'none') {
-          const diff = getDifficultyLabel();
-          const nextDiff = (() => { level++; const d = getDifficultyLabel(); level--; return d; })();
-          centerMessage.innerHTML = `
-            <h1 style="color: #4ade80;">🎉 You Escaped!</h1>
-            <p>Level ${level} <span style="color:${diff.color}">(${diff.text})</span> Complete! +${level * 100} bonus</p>
-            <p style="margin-top:8px; font-size:16px; color:${nextDiff.color};">Next: Level ${level + 1} — ${nextDiff.text}</p>
-            <div id="click-prompt">Click to Continue</div>
-          `;
-          centerMessage.style.display = 'block';
-        }
-      }
-
-      if (state === STATE.LOST) {
-        escapeAnimProgress = Math.min(1, escapeAnimProgress + 1.2 * dt);
-        if (escapeAnimProgress >= 1 && centerMessage.style.display === 'none') {
-          centerMessage.innerHTML = `
-            <h1 style="color: #ef4444;">💀 The Rope Cut!</h1>
-            <p>Final Score: ${score} | Reached Level ${level}</p>
-            <div id="click-prompt">Click to Try Again</div>
-          `;
-          centerMessage.style.display = 'block';
-        }
-      }
-
-      updateRopes();
-      updateParticles(dt);
-    }
-
-    function draw() {
-      drawBackground();
-
-      // Tighten flash overlay (red flash when rope tightens)
-      if (tightenFlash > 0) {
-        ctx.fillStyle = `rgba(239, 68, 68, ${tightenFlash * 0.5})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-      // Saw surge tint
-      if (sawSurgeActive > 0) {
-        ctx.fillStyle = `rgba(249, 115, 22, ${0.08 + Math.sin(Date.now() * 0.02) * 0.04})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      applyScreenShake();
-      drawRopes();
-      drawCharacter();
-      drawSawBlade();
-      drawParticles();
-      restoreScreenShake(0);
-    }
-
-    // ── Game loop with proper delta time ──
-    function gameLoop(timestamp) {
-      // dt in seconds, capped at 100ms to avoid spiral-of-death on tab-switch
-      const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.1);
-      lastFrameTime = timestamp;
-
-      update(dt);
-      draw();
-
-      // Decay screen shake here (outside draw's save/restore)
-      if (shakeIntensity > 0.1) {
-        shakeIntensity *= Math.pow(0.001, dt);
-      }
-
-      requestAnimationFrame(gameLoop);
-    }
-
-    initRopes();
-    lastFrameTime = performance.now();
-    requestAnimationFrame(gameLoop);
-  </script>
-</body>
-</html>
-();
-      } else {
-        // struggling face
-        const eyeShift = Math.sin(Date.now() * 0.01) * wiggle;
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.arc(-5 + eyeShift, -31, 2 + wiggle * 0.3, 0, Math.PI * 2);
-        ctx.arc(5 + eyeShift, -31, 2 + wiggle * 0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // grimace mouth
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        const mouthWiggle = Math.sin(Date.now() * 0.02) * 2;
-        ctx.moveTo(-5, -22 + mouthWiggle);
-        ctx.lineTo(-2, -24 + mouthWiggle);
-        ctx.lineTo(2, -22 + mouthWiggle);
-        ctx.lineTo(5, -24 + mouthWiggle);
-        ctx.stroke();
-
-        // sweat when danger high
-        if (dangerProgress > 50) {
-          const sweatY = -38 + (Date.now() % 1000) / 1000 * 15;
-          ctx.fillStyle = `rgba(100, 200, 255, ${1 - (Date.now() % 1000) / 1000})`;
-          ctx.beginPath();
-          ctx.ellipse(14, sweatY, 2.5, 3.5, 0.3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      ctx.restore();
-    }
-
-    // ── Saw blade ──
-    function drawSawBlade() {
-      if (state !== STATE.PLAYING && state !== STATE.LOST) return;
-
-      const progress = dangerProgress / 100;
-      const sawX = W / 2 + 180 - progress * 130;
-      const sawY = H / 2 - 40;
-      const rotation = Date.now() * 0.008;
-      const sawRadius = 25;
-      const teeth = 10;
-
-      ctx.save();
-      ctx.translate(sawX, sawY);
-      ctx.rotate(rotation);
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.beginPath();
-      for (let i = 0; i < teeth; i++) {
-        const a1 = (i / teeth) * Math.PI * 2;
-        const a2 = ((i + 0.5) / teeth) * Math.PI * 2;
-        ctx.lineTo(Math.cos(a1) * sawRadius, Math.sin(a1) * sawRadius);
-        ctx.lineTo(Math.cos(a2) * (sawRadius - 8), Math.sin(a2) * (sawRadius - 8));
-      }
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = '#64748b';
-      ctx.beginPath();
-      ctx.arc(0, 0, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#475569';
-      ctx.beginPath();
-      ctx.arc(0, 0, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
-
-      // sparks when close
-      if (progress > 0.6) {
-        for (let i = 0; i < 2; i++) {
-          sparks.push({
-            x: sawX - 15,
-            y: sawY + (Math.random() - 0.5) * 20,
-            vx: -Math.random() * 4 - 1,
-            vy: (Math.random() - 0.5) * 4,
-            life: 1,
-            color: Math.random() > 0.5 ? '#fbbf24' : '#f97316',
-          });
-        }
-      }
-    }
-
-    // ── Particles ──
-    function spawnClickParticles(x, y) {
-      for (let i = 0; i < 6; i++) {
-        particles.push({
-          x, y,
-          vx: (Math.random() - 0.5) * 8,
-          vy: (Math.random() - 0.5) * 8 - 2,
-          life: 1,
-          size: Math.random() * 4 + 2,
-          color: ['#4ade80', '#22c55e', '#86efac', '#fbbf24'][Math.floor(Math.random() * 4)],
-        });
-      }
-    }
-
-    function spawnExplosion(x, y, color, count) {
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2;
-        const speed = Math.random() * 6 + 2;
-        particles.push({
-          x, y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life: 1,
-          size: Math.random() * 5 + 2,
-          color,
-        });
-      }
-    }
-
-    function updateParticles(dt) {
-      const decay = 1.5; // particles last ~0.67s
-      particles = particles.filter(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.1;
-        p.life -= decay * dt;
-        return p.life > 0;
-      });
-      sparks = sparks.filter(s => {
-        s.x += s.vx;
-        s.y += s.vy;
-        s.vy += 0.15;
-        s.life -= 3 * dt;
-        return s.life > 0;
-      });
-    }
-
-    function drawParticles() {
-      particles.forEach(p => {
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      sparks.forEach(s => {
-        ctx.globalAlpha = s.life;
-        ctx.fillStyle = s.color;
-        ctx.fillRect(s.x, s.y, 3, 2);
-      });
-      ctx.globalAlpha = 1;
-    }
-
-    // ── Background ──
-    function drawBackground() {
-      const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, Math.max(W, H) * 0.7);
-
-      if (state === STATE.LOST) {
-        grad.addColorStop(0, '#3d1111');
-        grad.addColorStop(1, '#1a0505');
-      } else if (state === STATE.WON) {
-        grad.addColorStop(0, '#1a3d1a');
-        grad.addColorStop(1, '#0a1a0a');
-      } else {
-        const dangerTint = dangerProgress / 100;
-        const r = Math.floor(26 + dangerTint * 40);
-        const g = Math.floor(26 - dangerTint * 15);
-        const b = Math.floor(46 - dangerTint * 30);
-        grad.addColorStop(0, `rgb(${r+15},${g+10},${b+20})`);
-        grad.addColorStop(1, `rgb(${r},${g},${b})`);
-      }
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
-
-      // vignette
-      const vig = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.9);
-      vig.addColorStop(0, 'transparent');
-      vig.addColorStop(1, 'rgba(0,0,0,0.5)');
-      ctx.fillStyle = vig;
-      ctx.fillRect(0, 0, W, H);
-
-      // floor
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, H / 2 + 80);
-      ctx.lineTo(W, H / 2 + 80);
-      ctx.stroke();
-    }
-
-    // ── Screen shake ──
-    let shakeIntensity = 0;
-    function applyScreenShake() {
-      if (shakeIntensity > 0.1) {
-        ctx.save();
-        ctx.translate(
-          (Math.random() - 0.5) * shakeIntensity,
-          (Math.random() - 0.5) * shakeIntensity
-        );
-      }
-    }
-    function restoreScreenShake(dt) {
-      if (shakeIntensity > 0.1) {
-        ctx.restore();
-        // Decay shake using dt – half-life ~0.1s
-        shakeIntensity *= Math.pow(0.001, dt);
-      }
-    }
-
-    // ── Click handling ──
-    function handleClick(x, y) {
-      if (state === STATE.MENU) {
-        startGame();
-        return;
-      }
-
-      if (state === STATE.WON || state === STATE.LOST) {
-        if (cutAnimProgress >= 1 || escapeAnimProgress >= 1) {
-          if (state === STATE.WON) {
-            level++;
-            startGame();
-          } else {
-            level = 1;
-            score = 0;
-            startGame();
-          }
-        }
-        return;
-      }
-
-      if (state === STATE.PLAYING) {
-        const now = Date.now();
-        const timeSince = now - lastClickTime;
-        const cfg = getLevelConfig();
-
-        // Combo – window shrinks at higher levels
-        if (timeSince < cfg.comboWindow) {
-          clickCombo = Math.min(clickCombo + 1, cfg.maxCombo);
-        } else {
-          clickCombo = Math.max(0, clickCombo - 2);
-        }
-        lastClickTime = now;
-
-        const comboMultiplier = 1 + clickCombo * 0.12;
-        const gain = cfg.escapePerClick * comboMultiplier;
-        escapeProgress = Math.min(100, escapeProgress + gain);
-
-        // Trigger win immediately on the click that fills the bar
-        if (escapeProgress >= 100 && state === STATE.PLAYING) {
-          gameWon();
-          updateUI();
-        }
-
-        wiggleAmount = Math.min(5, wiggleAmount + 0.8);
-        characterShake.x = (Math.random() - 0.5) * 12;
-        characterShake.y = (Math.random() - 0.5) * 8;
-        shakeIntensity = 4 + clickCombo;
-
-        spawnClickParticles(x, y);
-
-        // ripple
-        const ripple = document.createElement('div');
-        ripple.className = 'click-ripple';
-        ripple.style.left = x + 'px';
-        ripple.style.top = y + 'px';
-        if (clickCombo > 3) {
-          ripple.style.borderColor = `hsl(${60 + clickCombo * 15}, 100%, 60%)`;
-        }
-        document.body.appendChild(ripple);
-        setTimeout(() => ripple.remove(), 500);
-
-        // floating combo text
-        if (clickCombo >= 2) {
-          const texts = ['WIGGLE!', 'FASTER!', 'GO GO GO!', 'ESCAPE!', '🔥 COMBO!', '⚡ POWER!'];
-          const ft = document.createElement('div');
-          ft.className = 'wiggle-text';
-          ft.textContent = texts[Math.min(clickCombo - 2, texts.length - 1)];
-          ft.style.left = x + 'px';
-          ft.style.top = (y - 20) + 'px';
-          ft.style.fontSize = (14 + clickCombo) + 'px';
-          document.body.appendChild(ft);
-          setTimeout(() => ft.remove(), 700);
-        }
-
-        score += Math.floor(comboMultiplier * 10);
-      }
-    }
-
-    // Both click and touch
-    document.addEventListener('click', e => handleClick(e.clientX, e.clientY));
-    document.addEventListener('touchstart', e => {
-      e.preventDefault();
-      for (const touch of e.touches) {
-        handleClick(touch.clientX, touch.clientY);
-      }
-    }, { passive: false });
-
-    // ── Start / end ──
-    function startGame() {
-      state = STATE.PLAYING;
-      escapeProgress = 0;
-      dangerProgress = 0;
-      wiggleAmount = 0;
-      clickCombo = 0;
-      cutAnimProgress = 0;
-      escapeAnimProgress = 0;
-      characterShake = { x: 0, y: 0 };
-      particles = [];
-      sparks = [];
-      gameElapsed = 0;
-      tightenFlash = 0;
-      sawSurgeActive = 0;
-
-      // Stagger first events so they don't hit immediately
-      const cfg = getLevelConfig();
-      nextTightenTime = cfg.tightenEnabled ? cfg.tightenInterval * 0.7 : 9999;
-      sawSurgeTimer = cfg.surgeEnabled ? cfg.surgeInterval * 0.8 : 9999;
-
-      lastFrameTime = performance.now();
-      initRopes();
-      centerMessage.style.display = 'none';
-
-      const diff = getDifficultyLabel();
-      levelDisplay.innerHTML = `Level ${level} <span style="color:${diff.color}; font-size:14px; margin-left:8px;">${diff.text}</span>`;
-      updateUI();
-    }
-
-    function gameWon() {
-      state = STATE.WON;
-      score += level * 100;
-      spawnExplosion(W / 2, H / 2, '#4ade80', 40);
-      spawnExplosion(W / 2, H / 2, '#fbbf24', 30);
-      shakeIntensity = 20;
-    }
-
-    function gameLost() {
-      state = STATE.LOST;
-      spawnExplosion(W / 2, H / 2, '#ef4444', 50);
-      shakeIntensity = 30;
-    }
-
-    function updateUI() {
-      escapeFill.style.width = escapeProgress + '%';
-      dangerFill.style.width = dangerProgress + '%';
-      scoreDisplay.textContent = `Score: ${score}`;
-
-      // Pulse danger bar when high or during saw surge
-      if (sawSurgeActive > 0) {
-        dangerFill.style.boxShadow = `0 0 18px rgba(249, 115, 22, 0.9)`;
-        document.getElementById('danger-label').textContent = '🔪 ⚡ SAW SURGE!';
-      } else if (dangerProgress > 70) {
-        dangerFill.style.boxShadow = `0 0 ${10 + Math.sin(Date.now() * 0.01) * 5}px rgba(239, 68, 68, 0.6)`;
-        document.getElementById('danger-label').textContent = '🔪 Rope Cutting';
-      } else {
-        dangerFill.style.boxShadow = 'none';
-        document.getElementById('danger-label').textContent = '🔪 Rope Cutting';
-      }
-    }
-
-    // ── Main update (delta‑time based) ──
-    function update(dt) {
-      if (state === STATE.PLAYING) {
-        const cfg = getLevelConfig();
-        gameElapsed += dt;
-
-        // ── 1. Danger increases (with saw surge) ──
-        let dangerSpeed = cfg.dangerPerSec;
-        if (cfg.surgeEnabled) {
-          sawSurgeTimer -= dt;
-          if (sawSurgeTimer <= 0 && sawSurgeActive <= 0) {
-            // Start a surge!
-            sawSurgeActive = cfg.surgeDuration;
-            sawSurgeTimer = cfg.surgeInterval;
-            shakeIntensity = Math.max(shakeIntensity, 8);
-          }
-          if (sawSurgeActive > 0) {
-            sawSurgeActive -= dt;
-            dangerSpeed *= cfg.surgeMultiplier;
-          }
-        }
-        dangerProgress = Math.min(100, dangerProgress + dangerSpeed * dt);
-
-        // ── 2. Rope tighten events (knockback) ──
-        if (cfg.tightenEnabled) {
-          nextTightenTime -= dt;
-          if (nextTightenTime <= 0 && escapeProgress > 5) {
-            // Knock escape back!
-            const knockback = Math.min(escapeProgress - 1, cfg.tightenAmount);
-            escapeProgress = Math.max(0, escapeProgress - knockback);
-            nextTightenTime = cfg.tightenInterval;
-            tightenFlash = 0.4;  // seconds of red flash
-            shakeIntensity = Math.max(shakeIntensity, 12);
-
-            // Spawn red warning particles on character
-            spawnExplosion(W / 2, H / 2, '#ef4444', 15);
-
-            // Floating warning
-            const warn = document.createElement('div');
-            warn.className = 'wiggle-text';
-            warn.textContent = '🪢 ROPE TIGHTENS!';
-            warn.style.left = (W / 2) + 'px';
-            warn.style.top = (H / 2 - 80) + 'px';
-            warn.style.color = '#ef4444';
-            warn.style.fontSize = '22px';
-            document.body.appendChild(warn);
-            setTimeout(() => warn.remove(), 700);
-          }
-        }
-        if (tightenFlash > 0) tightenFlash -= dt;
-
-        // ── 3. Check win/lose BEFORE applying decay ──
-        if (escapeProgress >= 100) {
-          gameWon();
-        } else if (dangerProgress >= 100) {
-          gameLost();
-        } else {
-          // ── 4. Escape decay (with progress‑dependent amplification) ──
-          let decay = cfg.escapeDecayPerSec;
-          if (cfg.progressDecayEnabled) {
-            // The closer you are to 100%, the faster it drains (up to +factor extra)
-            const progressRatio = escapeProgress / 100;
-            decay *= (1 + progressRatio * cfg.progressDecayFactor);
-          }
-          escapeProgress = Math.max(0, escapeProgress - decay * dt);
-        }
-
-        // wiggle visual decay
-        wiggleAmount *= Math.pow(0.01, dt);
-        characterShake.x *= Math.pow(0.001, dt);
-        characterShake.y *= Math.pow(0.001, dt);
-
-        updateUI();
-      }
-
-      if (state === STATE.WON) {
-        cutAnimProgress = Math.min(1, cutAnimProgress + 1.0 * dt);  // ~1s animation
-        wiggleAmount *= Math.pow(0.05, dt);
-        if (cutAnimProgress >= 1 && centerMessage.style.display === 'none') {
-          const diff = getDifficultyLabel();
-          const nextDiff = (() => { level++; const d = getDifficultyLabel(); level--; return d; })();
-          centerMessage.innerHTML = `
-            <h1 style="color: #4ade80;">🎉 You Escaped!</h1>
-            <p>Level ${level} <span style="color:${diff.color}">(${diff.text})</span> Complete! +${level * 100} bonus</p>
-            <p style="margin-top:8px; font-size:16px; color:${nextDiff.color};">Next: Level ${level + 1} — ${nextDiff.text}</p>
-            <div id="click-prompt">Click to Continue</div>
-          `;
-          centerMessage.style.display = 'block';
-        }
-      }
-
-      if (state === STATE.LOST) {
-        escapeAnimProgress = Math.min(1, escapeAnimProgress + 1.2 * dt);
-        if (escapeAnimProgress >= 1 && centerMessage.style.display === 'none') {
-          centerMessage.innerHTML = `
-            <h1 style="color: #ef4444;">💀 The Rope Cut!</h1>
-            <p>Final Score: ${score} | Reached Level ${level}</p>
-            <div id="click-prompt">Click to Try Again</div>
-          `;
-          centerMessage.style.display = 'block';
-        }
-      }
-
-      updateRopes();
-      updateParticles(dt);
-    }
-
-    function draw() {
-      drawBackground();
-
-      // Tighten flash overlay (red flash when rope tightens)
-      if (tightenFlash > 0) {
-        ctx.fillStyle = `rgba(239, 68, 68, ${tightenFlash * 0.5})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-      // Saw surge tint
-      if (sawSurgeActive > 0) {
-        ctx.fillStyle = `rgba(249, 115, 22, ${0.08 + Math.sin(Date.now() * 0.02) * 0.04})`;
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      applyScreenShake();
-      drawRopes();
-      drawCharacter();
-      drawSawBlade();
-      drawParticles();
-      restoreScreenShake(0);
-    }
-
-    // ── Game loop with proper delta time ──
-    function gameLoop(timestamp) {
-      // dt in seconds, capped at 100ms to avoid spiral-of-death on tab-switch
-      const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.1);
-      lastFrameTime = timestamp;
-
-      update(dt);
-      draw();
-
-      // Decay screen shake here (outside draw's save/restore)
-      if (shakeIntensity > 0.1) {
-        shakeIntensity *= Math.pow(0.001, dt);
-      }
 
       requestAnimationFrame(gameLoop);
     }
