@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wiggle Escape!</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #1a1a2e;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: pointer;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #ui-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .bar-container {
+      width: 280px;
+      background: rgba(0,0,0,0.5);
+      border-radius: 12px;
+      padding: 10px 14px;
+      backdrop-filter: blur(8px);
+    }
+
+    .bar-label {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 18px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 9px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 9px;
+      transition: width 0.05s linear;
+      position: relative;
+    }
+
+    .bar-fill::after {
+      content: '';
+      position: absolute;
+      top: 2px; left: 4px; right: 4px;
+      height: 5px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 3px;
+    }
+
+    #escape-label { color: #4ade80; }
+    #escape-fill { background: linear-gradient(90deg, #22c55e, #4ade80); }
+
+    #danger-label { color: #f87171; }
+    #danger-fill { background: linear-gradient(90deg, #dc2626, #f87171); }
+
+    #center-message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    #center-message h1 {
+      font-size: 52px;
+      font-weight: 900;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      margin-bottom: 10px;
+    }
+
+    #center-message p {
+      font-size: 20px;
+      color: rgba(255,255,255,0.8);
+      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+
+    #click-prompt {
+      font-size: 16px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 20px;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    #score-display {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 18px;
+      color: rgba(255,255,255,0.7);
+      font-weight: 600;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    #level-display {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      color: #fbbf24;
+      font-weight: 800;
+      z-index: 10;
+      pointer-events: none;
+      text-shadow: 0 2px 10px rgba(251, 191, 36, 0.4);
+    }
+
+    .click-ripple {
+      position: fixed;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 3px solid rgba(74, 222, 128, 0.8);
+      pointer-events: none;
+      z-index: 5;
+      animation: ripple 0.5s ease-out forwards;
+    }
+
+    @keyframes ripple {
+      0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+    }
+
+    .wiggle-text {
+      position: fixed;
+      font-size: 14px;
+      font-weight: 700;
+      color: #4ade80;
+      pointer-events: none;
+      z-index: 5;
+      animation: floatUp 0.7s ease-out forwards;
+    }
+
+    @keyframes floatUp {
+      0% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+      100% { transform: translate(-50%, -50px) scale(1.3); opacity: 0; }
+    }
+
+    #instructions {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.4);
+      font-size: 13px;
+      z-index: 10;
+      pointer-events: none;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="ui-overlay">
+    <div class="bar-container">
+      <div class="bar-label" id="escape-label">🏃 Wiggle Escape</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="escape-fill" style="width: 0%"></div>
+      </div>
+    </div>
+    <div class="bar-container">
+      <div class="bar-label" id="danger-label">🔪 Rope Cutting</div>
+      <div class="bar-track">
+        <div class="bar-fill" id="danger-fill" style="width: 0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="level-display">Level 1</div>
+  <div id="score-display">Score: 0</div>
+
+  <div id="center-message">
+    <h1 style="color: #fbbf24;">🪢 Wiggle Escape!</h1>
+    <p>Click anywhere rapidly to wiggle free before the rope cuts!</p>
+    <div id="click-prompt">Click to Start</div>
+  </div>
+
+  <div id="instructions">Click rapidly anywhere on screen to wiggle free!</div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const escapeFill = document.getElementById('escape-fill');
+    const dangerFill = document.getElementById('danger-fill');
+    const centerMessage = document.getElementById('center-message');
+    const levelDisplay = document.getElementById('level-display');
+    const scoreDisplay = document.getElementById('score-display');
+
+    let W, H;
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Game state
+    const STATE = { MENU: 0, PLAYING: 1, WON: 2, LOST: 3 };
+    let state = STATE.MENU;
+    let escapeProgress = 0;
+    let dangerProgress = 0;
+    let score = 0;
+    let level = 1;
+    let wiggleAmount = 0;
+    let lastClickTime = 0;
+    let clickCombo = 0;
+    let characterShake = { x: 0, y: 0 };
+    let ropeSegments = [];
+    let particles = [];
+    let sparks = [];
+    let cutAnimProgress = 0;
+    let escapeAnimProgress = 0;
+
+    // Level config
+    function getLevelConfig() {
+      return {
+        dangerSpeed: 0.08 + level * 0.025,
+        escapePerClick: Math.max(0.6, 1.8 - level * 0.1),
+        escapeDecay: 0.03 + level * 0.008,
+        ropeCount: Math.min(3 + Math.floor(level / 3), 8),
+      };
+    }
+
+    // Rope physics
+    class RopePoint {
+      constructor(x, y, pinned = false) {
+        this.x = x; this.y = y;
+        this.oldX = x; this.oldY = y;
+        this.pinned = pinned;
+      }
+    }
+
+    function initRopes() {
+      ropeSegments = [];
+      const cfg = getLevelConfig();
+      const cx = W / 2;
+      const cy = H / 2 + 20;
+
+      for (let r = 0; r < cfg.ropeCount; r++) {
+        const angle = (r / cfg.ropeCount) * Math.PI * 2;
+        const rope = [];
+        const segments = 12;
+        for (let i = 0; i <= segments; i++) {
+          const t = i / segments;
+          const radius = 40 + t * (80 + r * 15);
+          const px = cx + Math.cos(angle + t * 0.5) * radius * t;
+          const py = cy + Math.sin(angle + t * 0.5) * radius * t;
+          rope.push(new RopePoint(px, py, i === 0));
+        }
+        ropeSegments.push(rope);
+      }
+    }
+
+    function updateRopes() {
+      const gravity = 0.3;
+      const wiggleFactor = wiggleAmount * 3;
+
+      ropeSegments.forEach(rope => {
+        rope.forEach(p => {
+          if (p.pinned) {
+            p.x = W / 2 + Math.sin(Date.now() * 0.003) * wiggleFactor * 2;
+            p.y = H / 2 + 20 + Math.cos(Date.now() * 0.004) * wiggleFactor;
+            return;
+          }
+          const vx = (p.x - p.oldX) * 0.98;
+          const vy = (p.y - p.oldY) * 0.98;
+          p.oldX = p.x;
+          p.oldY = p.y;
+          p.x += vx + (Math.random() - 0.5) * wiggleFactor;
+          p.y += vy + gravity + (Math.random() - 0.5) * wiggleFactor * 0.5;
+        });
+
+        // Constraints
+        for (let iter = 0; iter < 3; iter++) {
+          for (let i = 0; i < rope.length - 1; i++) {
+            const a = rope[i], b = rope[i + 1];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const restLen = 12;
+            const diff = (dist - restLen) / dist * 0.5;
+            if (!a.pinned) { a.x += dx * diff; a.y += dy * diff; }
+            if (!b.pinned) { b.x -= dx * diff; b.y -= dy * diff; }
+          }
+        }
+      });
+    }
+
+    function drawRopes() {
+      const brokenAmount = state === STATE.WON ? cutAnimProgress : 0;
+      const tensionColor = state === STATE.LOST ? '#ef4444' : 
+        `hsl(${40 - dangerProgress * 0.4}, 80%, ${55 + Math.sin(Date.now() * 0.01) * 10}%)`;
+
+      ropeSegments.forEach((rope, ri) => {
+        if (brokenAmount > 0 && ri < ropeSegments.length * brokenAmount) {
+          // Draw broken rope flying apart
+          ctx.strokeStyle = '#8B7355';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.globalAlpha = 1 - brokenAmount;
+          ctx.beginPath();
+          rope.forEach((p, i) => {
+            const flyX = p.x + (Math.random() - 0.5) * brokenAmount * 100;
+            const flyY = p.y - brokenAmount * 150 * Math.random();
+            i === 0 ? ctx.moveTo(flyX, flyY) : ctx.lineTo(flyX, flyY);
+          });
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+          return;
+        }
+
+        // Rope shadow
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        rope.forEach((p, i) => i === 0 ? ctx.moveTo(p.x + 2, p.y + 3) : ctx.lineTo(p.x + 2, p.y + 3));
+        ctx.stroke();
+
+        // Main rope
+        ctx.strokeStyle = tensionColor;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        rope.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+        ctx.stroke();
+
+        // Rope highlight
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        rope.forEach((p, i) => i === 0 ? ctx.moveTo(p.x - 1, p.y - 1) : ctx.lineTo(p.x - 1, p.y - 1));
+        ctx.stroke();
+      });
+    }
+
+    // Character
+    function drawCharacter() {
+      const cx = W / 2 + characterShake.x;
+      const cy = H / 2 + 20 + characterShake.y;
+      const wiggle = wiggleAmount;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(Math.sin(Date.now() * 0.015) * wiggle * 0.15);
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath();
+      ctx.ellipse(3, 55, 25, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Body
+      const bodyGrad = ctx.createLinearGradient(-18, -25, 18, 40);
+      bodyGrad.addColorStop(0, '#6366f1');
+      bodyGrad.addColorStop(1, '#4338ca');
+      ctx.fillStyle = bodyGrad;
+      ctx.beginPath();
+      ctx.roundRect(-18, -15, 36, 55, 8);
+      ctx.fill();
+
+      // Arms wiggling
+      const armWiggle = Math.sin(Date.now() * 0.02) * wiggle * 8;
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+
+      // Left arm
+      ctx.beginPath();
+      ctx.moveTo(-18, 0);
+      ctx.quadraticCurveTo(-35 + armWiggle, -10, -30 + armWiggle * 1.5, -25);
+      ctx.stroke();
+
+      // Right arm
+      ctx.beginPath();
+      ctx.moveTo(18, 0);
+      ctx.quadraticCurveTo(35 - armWiggle, -10, 30 - armWiggle * 1.5, -25);
+      ctx.stroke();
+
+      // Legs
+      const legWiggle = Math.cos(Date.now() * 0.018) * wiggle * 5;
+      ctx.strokeStyle = '#4338ca';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(-8, 40);
+      ctx.lineTo(-12 + legWiggle, 58);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(8, 40);
+      ctx.lineTo(12 - legWiggle, 58);
+      ctx.stroke();
+
+      // Head
+      const headGrad = ctx.createRadialGradient(0, -28, 2, 0, -28, 16);
+      headGrad.addColorStop(0, '#fcd7a0');
+      headGrad.addColorStop(1, '#f0b87a');
+      ctx.fillStyle = headGrad;
+      ctx.beginPath();
+      ctx.arc(0, -28, 16, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Face expression
+      if (state === STATE.LOST) {
+        // Scared / dead face
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.arc(-5, -31, 2.5, 0, Math.PI * 2);
+        ctx.arc(5, -31, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, -22, 5, 0, Math.PI);
+        ctx.stroke();
+        // X eyes
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 1.5;
+        [-5, 5].forEach(ex => {
+          ctx.beginPath();
+          ctx.moveTo(ex - 3, -33); ctx.lineTo(ex + 3, -29);
+          ctx.moveTo(ex + 3, -33); ctx.lineTo(ex - 3, -29);
+          ctx.stroke();
+        });
+      } else if (state === STATE.WON) {
+        // Happy face
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.arc(-5, -31, 2, 0, Math.PI * 2);
+        ctx.arc(5, -31, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, -26, 6, 0.1, Math.PI - 0.1);
+        ctx.stroke();
+      } else {
+        // Struggling face
+        const eyeShift = Math.sin(Date.now() * 0.01) * wiggle;
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.arc(-5 + eyeShift, -31, 2 + wiggle * 0.3, 0, Math.PI * 2);
+        ctx.arc(5 + eyeShift, -31, 2 + wiggle * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mouth - grimace
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const mouthWiggle = Math.sin(Date.now() * 0.02) * 2;
+        ctx.moveTo(-5, -22 + mouthWiggle);
+        ctx.lineTo(-2, -24 + mouthWiggle);
+        ctx.lineTo(2, -22 + mouthWiggle);
+        ctx.lineTo(5, -24 + mouthWiggle);
+        ctx.stroke();
+
+        // Sweat drop when danger is high
+        if (dangerProgress > 50) {
+          const sweatY = -38 + (Date.now() % 1000) / 1000 * 15;
+          ctx.fillStyle = `rgba(100, 200, 255, ${1 - (Date.now() % 1000) / 1000})`;
+          ctx.beginPath();
+          ctx.ellipse(14, sweatY, 2.5, 3.5, 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // Saw blade (danger indicator)
+    function drawSawBlade() {
+      if (state !== STATE.PLAYING && state !== STATE.LOST) return;
+
+      const progress = dangerProgress / 100;
+      const sawX = W / 2 + 180 - progress * 130;
+      const sawY = H / 2 - 40;
+      const rotation = Date.now() * 0.008;
+      const sawRadius = 25;
+      const teeth = 10;
+
+      ctx.save();
+      ctx.translate(sawX, sawY);
+      ctx.rotate(rotation);
+
+      // Saw blade
+      ctx.fillStyle = '#94a3b8';
+      ctx.beginPath();
+      for (let i = 0; i < teeth; i++) {
+        const a1 = (i / teeth) * Math.PI * 2;
+        const a2 = ((i + 0.5) / teeth) * Math.PI * 2;
+        ctx.lineTo(Math.cos(a1) * sawRadius, Math.sin(a1) * sawRadius);
+        ctx.lineTo(Math.cos(a2) * (sawRadius - 8), Math.sin(a2) * (sawRadius - 8));
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      // Center
+      ctx.fillStyle = '#64748b';
+      ctx.beginPath();
+      ctx.arc(0, 0, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#475569';
+      ctx.beginPath();
+      ctx.arc(0, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+
+      // Sparks when close
+      if (progress > 0.6) {
+        for (let i = 0; i < 2; i++) {
+          sparks.push({
+            x: sawX - 15,
+            y: sawY + (Math.random() - 0.5) * 20,
+            vx: -Math.random() * 4 - 1,
+            vy: (Math.random() - 0.5) * 4,
+            life: 1,
+            color: Math.random() > 0.5 ? '#fbbf24' : '#f97316',
+          });
+        }
+      }
+    }
+
+    // Particles
+    function spawnClickParticles(x, y) {
+      for (let i = 0; i < 6; i++) {
+        particles.push({
+          x, y,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8 - 2,
+          life: 1,
+          size: Math.random() * 4 + 2,
+          color: ['#4ade80', '#22c55e', '#86efac', '#fbbf24'][Math.floor(Math.random() * 4)],
+        });
+      }
+    }
+
+    function spawnExplosion(x, y, color, count) {
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const speed = Math.random() * 6 + 2;
+        particles.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 1,
+          size: Math.random() * 5 + 2,
+          color,
+        });
+      }
+    }
+
+    function updateParticles() {
+      particles = particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.1;
+        p.life -= 0.025;
+        return p.life > 0;
+      });
+      sparks = sparks.filter(s => {
+        s.x += s.vx;
+        s.y += s.vy;
+        s.vy += 0.15;
+        s.life -= 0.05;
+        return s.life > 0;
+      });
+    }
+
+    function drawParticles() {
+      particles.forEach(p => {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      sparks.forEach(s => {
+        ctx.globalAlpha = s.life;
+        ctx.fillStyle = s.color;
+        ctx.fillRect(s.x, s.y, 3, 2);
+      });
+      ctx.globalAlpha = 1;
+    }
+
+    // Background
+    function drawBackground() {
+      // Dark gradient
+      const grad = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, Math.max(W, H) * 0.7);
+      
+      if (state === STATE.LOST) {
+        grad.addColorStop(0, '#3d1111');
+        grad.addColorStop(1, '#1a0505');
+      } else if (state === STATE.WON) {
+        grad.addColorStop(0, '#1a3d1a');
+        grad.addColorStop(1, '#0a1a0a');
+      } else {
+        const dangerTint = dangerProgress / 100;
+        const r = Math.floor(26 + dangerTint * 40);
+        const g = Math.floor(26 - dangerTint * 15);
+        const b = Math.floor(46 - dangerTint * 30);
+        grad.addColorStop(0, `rgb(${r+15},${g+10},${b+20})`);
+        grad.addColorStop(1, `rgb(${r},${g},${b})`);
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Vignette
+      const vig = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.9);
+      vig.addColorStop(0, 'transparent');
+      vig.addColorStop(1, 'rgba(0,0,0,0.5)');
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, W, H);
+
+      // Floor line
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, H / 2 + 80);
+      ctx.lineTo(W, H / 2 + 80);
+      ctx.stroke();
+    }
+
+    // Screen shake
+    let shakeIntensity = 0;
+    function applyScreenShake() {
+      if (shakeIntensity > 0.1) {
+        ctx.save();
+        ctx.translate(
+          (Math.random() - 0.5) * shakeIntensity,
+          (Math.random() - 0.5) * shakeIntensity
+        );
+        shakeIntensity *= 0.9;
+      }
+    }
+    function restoreScreenShake() {
+      if (shakeIntensity > 0.1) {
+        ctx.restore();
+      }
+    }
+
+    // Game logic
+    function handleClick(x, y) {
+      if (state === STATE.MENU) {
+        startGame();
+        return;
+      }
+
+      if (state === STATE.WON || state === STATE.LOST) {
+        if (cutAnimProgress >= 1 || escapeAnimProgress >= 1) {
+          if (state === STATE.WON) {
+            level++;
+            startGame();
+          } else {
+            level = 1;
+            score = 0;
+            startGame();
+          }
+        }
+        return;
+      }
+
+      if (state === STATE.PLAYING) {
+        const now = Date.now();
+        const timeSince = now - lastClickTime;
+
+        // Combo for fast clicks
+        if (timeSince < 300) {
+          clickCombo = Math.min(clickCombo + 1, 10);
+        } else {
+          clickCombo = Math.max(0, clickCombo - 1);
+        }
+        lastClickTime = now;
+
+        const cfg = getLevelConfig();
+        const comboMultiplier = 1 + clickCombo * 0.15;
+        escapeProgress = Math.min(100, escapeProgress + cfg.escapePerClick * comboMultiplier);
+        wiggleAmount = Math.min(5, wiggleAmount + 0.8);
+        characterShake.x = (Math.random() - 0.5) * 12;
+        characterShake.y = (Math.random() - 0.5) * 8;
+        shakeIntensity = 4 + clickCombo;
+
+        spawnClickParticles(x, y);
+
+        // Visual feedback
+        const ripple = document.createElement('div');
+        ripple.className = 'click-ripple';
+        ripple.style.left = x + 'px';
+        ripple.style.top = y + 'px';
+        if (clickCombo > 3) {
+          ripple.style.borderColor = `hsl(${60 + clickCombo * 20}, 100%, 60%)`;
+        }
+        document.body.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 500);
+
+        // Floating text
+        if (clickCombo >= 3) {
+          const texts = ['WIGGLE!', 'FASTER!', 'GO GO GO!', 'ESCAPE!', '🔥 COMBO!', '⚡ POWER!'];
+          const ft = document.createElement('div');
+          ft.className = 'wiggle-text';
+          ft.textContent = texts[Math.min(clickCombo - 3, texts.length - 1)];
+          ft.style.left = x + 'px';
+          ft.style.top = (y - 20) + 'px';
+          ft.style.fontSize = (14 + clickCombo) + 'px';
+          document.body.appendChild(ft);
+          setTimeout(() => ft.remove(), 700);
+        }
+
+        score += Math.floor(comboMultiplier * 10);
+      }
+    }
+
+    document.addEventListener('click', e => handleClick(e.clientX, e.clientY));
+    document.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const touch of e.touches) {
+        handleClick(touch.clientX, touch.clientY);
+      }
+    }, { passive: false });
+
+    function startGame() {
+      state = STATE.PLAYING;
+      escapeProgress = 0;
+      dangerProgress = 0;
+      wiggleAmount = 0;
+      clickCombo = 0;
+      cutAnimProgress = 0;
+      escapeAnimProgress = 0;
+      characterShake = { x: 0, y: 0 };
+      particles = [];
+      sparks = [];
+      initRopes();
+      centerMessage.style.display = 'none';
+      levelDisplay.textContent = `Level ${level}`;
+      updateUI();
+    }
+
+    function gameWon() {
+      state = STATE.WON;
+      score += level * 100;
+      spawnExplosion(W / 2, H / 2, '#4ade80', 40);
+      spawnExplosion(W / 2, H / 2, '#fbbf24', 30);
+      shakeIntensity = 20;
+    }
+
+    function gameLost() {
+      state = STATE.LOST;
+      spawnExplosion(W / 2, H / 2, '#ef4444', 50);
+      shakeIntensity = 30;
+    }
+
+    function updateUI() {
+      escapeFill.style.width = escapeProgress + '%';
+      dangerFill.style.width = dangerProgress + '%';
+      scoreDisplay.textContent = `Score: ${score}`;
+
+      // Pulse danger bar when high
+      if (dangerProgress > 70) {
+        dangerFill.style.boxShadow = `0 0 ${10 + Math.sin(Date.now() * 0.01) * 5}px rgba(239, 68, 68, 0.6)`;
+      } else {
+        dangerFill.style.boxShadow = 'none';
+      }
+    }
+
+    function update() {
+      if (state === STATE.PLAYING) {
+        const cfg = getLevelConfig();
+
+        // Danger increases over time
+        dangerProgress = Math.min(100, dangerProgress + cfg.dangerSpeed);
+
+        // Escape decays when not clicking
+        escapeProgress = Math.max(0, escapeProgress - cfg.escapeDecay);
+
+        // Wiggle decays
+        wiggleAmount *= 0.93;
+        characterShake.x *= 0.85;
+        characterShake.y *= 0.85;
+
+        // Check win/lose
+        if (escapeProgress >= 100) {
+          gameWon();
+        } else if (dangerProgress >= 100) {
+          gameLost();
+        }
+
+        updateUI();
+      }
+
+      if (state === STATE.WON) {
+        cutAnimProgress = Math.min(1, cutAnimProgress + 0.015);
+        wiggleAmount = Math.max(wiggleAmount * 0.95, 0);
+        if (cutAnimProgress >= 1 && centerMessage.style.display === 'none') {
+          centerMessage.innerHTML = `
+            <h1 style="color: #4ade80;">🎉 You Escaped!</h1>
+            <p>Level ${level} Complete! +${level * 100} bonus</p>
+            <div id="click-prompt">Click for Level ${level + 1}</div>
+          `;
+          centerMessage.style.display = 'block';
+        }
+      }
+
+      if (state === STATE.LOST) {
+        escapeAnimProgress = Math.min(1, escapeAnimProgress + 0.02);
+        if (escapeAnimProgress >= 1 && centerMessage.style.display === 'none') {
+          centerMessage.innerHTML = `
+            <h1 style="color: #ef4444;">💀 The Rope Cut!</h1>
+            <p>Final Score: ${score} | Reached Level ${level}</p>
+            <div id="click-prompt">Click to Try Again</div>
+          `;
+          centerMessage.style.display = 'block';
+        }
+      }
+
+      updateRopes();
+      updateParticles();
+    }
+
+    function draw() {
+      drawBackground();
+      applyScreenShake();
+      drawRopes();
+      drawCharacter();
+      drawSawBlade();
+      drawParticles();
+      restoreScreenShake();
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    initRopes();
+    gameLoop();
+  </script>
+</body>
+</html>
